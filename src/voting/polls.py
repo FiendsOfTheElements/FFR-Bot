@@ -8,14 +8,19 @@ from concurrent.futures import TimeoutError
 
 import constants
 import text
-from poll import Poll
-from stv_election import StvElection
+from voting.poll import Poll
+from voting.stv_election import StvElection
 
 
 def is_admin(ctx):
     user = ctx.author
     return (any(role.name in constants.ADMINS for role in user.roles)) or (
-        user.id == int(140605120579764226))
+            user.id == int(140605120579764226))
+
+
+def is_steven(ctx):
+    user = ctx.author
+    return user.id == int(140605120579764226)
 
 
 class Polls(commands.Cog):
@@ -26,13 +31,13 @@ class Polls(commands.Cog):
         try:
             self.load_all()
         except Exception as e:
-            logging.error("Error loading saved polls, maybe use command"
+            logging.error("Error loading saved voting, maybe use command"
                           + " clear_db to wipe stored data")
             logging.exception(e)
 
     def load_all(self):
-        logging.info("loading saved polls")
-        temp = dict(self.redis_db.hgetall('polls'))
+        logging.info("loading saved voting")
+        temp = dict(self.redis_db.hgetall('voting'))
         for k, v in temp.items():
             self.polls[k.decode("utf-8")] = pickle.loads(v)
         for poll in self.polls.values():
@@ -41,7 +46,7 @@ class Polls(commands.Cog):
     def save_one(self, id):
         logging.info("saving poll " + id)
         poll = self.polls[id]
-        self.redis_db.hset("polls",
+        self.redis_db.hset("voting",
                            id, pickle.dumps(poll,
                                             protocol=pickle.HIGHEST_PROTOCOL))
         logging.info("saved")
@@ -49,13 +54,13 @@ class Polls(commands.Cog):
 
     def verify_save(self, id):
         original = self.polls[id]
-        saved = pickle.loads(self.redis_db.hget("polls", id))
+        saved = pickle.loads(self.redis_db.hget("voting", id))
         logging.debug("original: " + str(original))
         logging.debug("saved: " + str(saved))
         logging.debug(saved == original)
 
     @commands.command()
-    @commands.check(is_admin)
+    @commands.check(is_steven)
     async def clear_db(self, ctx):
         self.redis_db.flushall()
         logging.info("cleared redis db")
@@ -73,7 +78,8 @@ class Polls(commands.Cog):
                                  category=get(ctx.guild.categories,
                                               name=constants.polls_category),
                                  reason="bot generated channel for a poll,"
-                                 + " will be deleted after poll finishes")
+                                        + " will be deleted after poll "
+                                          "finishes")
 
         if poll_type == "poll":
             poll = Poll(name, str(pollchannel.id))
@@ -97,7 +103,7 @@ class Polls(commands.Cog):
 
         if len(poll.options) < 2:
             error_text = text.not_enough_options\
-                + poll.list_options(name_only=True)
+                         + poll.list_options(name_only=True)
             await ctx.author.send(error_text)
             await ctx.message.delete()
             return
@@ -112,8 +118,9 @@ class Polls(commands.Cog):
 
         poll.start_poll()
         output = "this poll is now open!\nThe following options are avalible"\
-            + ", use `?vote` in this channel to vote, you will recieve a PM "\
-            + "from FFRBot" + "\n\nOptions:\n\n" + poll.list_options()
+                 + ", use `?vote` in this channel to vote, you will recieve "\
+                   "a PM "\
+                 + "from FFRBot" + "\n\nOptions:\n\n" + poll.list_options()
         await ctx.channel.send(output)
         self.save_one(str(ctx.channel.id))
 
@@ -213,7 +220,8 @@ class Polls(commands.Cog):
 
             def check(m):
                 return m.author == ctx.author\
-                    and m.channel == ctx.channel
+                       and m.channel == ctx.channel
+
             reply = None
             while (reply is None
                    or not (reply.content.lower() == "yes"
@@ -257,7 +265,8 @@ class Polls(commands.Cog):
 
         def check(m):
             return m.author == ctx.author\
-                and m.channel == ctx.channel
+                   and m.channel == ctx.channel
+
         reply = None
         while (reply is None
                or not (reply.content.lower() == "yes"
@@ -310,12 +319,13 @@ class Polls(commands.Cog):
             await ctx.message.delete()
             return
 
-        await ctx.channel.send("reply `yes` to forcably end this poll, "
+        await ctx.channel.send("reply `yes` to forcibly end this poll, "
                                + "or reply `no` to stop")
 
         def check(m):
             return m.author == ctx.author\
-                and m.channel == ctx.channel
+                   and m.channel == ctx.channel
+
         reply = None
         while (reply is None
                or not (reply.content.lower() == "yes"
@@ -330,10 +340,11 @@ class Polls(commands.Cog):
         if reply.content.lower() == "yes":
             await ctx.channel.send("logging who deleted this poll with "
                                    + "a role create and delete")
-            reason = poll.poll_id + " force deleted by: " + \
-                ctx.author.name + "\ndisplay name: " + ctx.author.display_name
+            reason = poll.poll_id + " force deleted by: " +\
+                     ctx.author.name + "\ndisplay name: " +\
+                     ctx.author.display_name
             role = await ctx.guild.create_role(name="deleted-poll",
-                                                    reason=reason)
+                                               reason=reason)
             await role.delete(reason=reason)
             poll.end_poll()
             self.save_one(poll.get_channel())
@@ -348,8 +359,8 @@ class Polls(commands.Cog):
             await ctx.author.send(text.no_poll_in_channel)
             await ctx.message.delete()
             return
-        csv_file_name = poll.get_csv()
-        with open(csv_file_name, mode="rb") as csv_file:
+        file_name = poll.get_csv()
+        with open(file_name, mode="rb") as csv_file:
             f = File(csv_file)
             await ctx.channel.send("votes", file=f)
 
@@ -364,3 +375,39 @@ class Polls(commands.Cog):
         await ctx.author.send("number of ballots cast: "
                               + str(poll.get_count()))
         await ctx.message.delete()
+
+    @commands.command()
+    @commands.check(is_steven)
+    async def check(self, ctx):
+        try:
+            poll = self.polls[str(ctx.channel.id)]
+        except KeyError:
+            await ctx.author.send(text.no_poll_in_channel)
+            await ctx.message.delete()
+            return
+
+        try:
+            file_name = poll.get_voter_info()
+            with open(file_name, mode="rb") as csv_file:
+                f = File(csv_file)
+                await ctx.author.send("voter_info", file=f)
+            await ctx.message.delete()
+        except Exception:
+            await ctx.message.delete()
+
+    @commands.command()
+    @commands.check(is_steven)
+    async def check2(self, ctx):
+        try:
+            poll = self.polls[str(ctx.channel.id)]
+        except KeyError:
+            await ctx.author.send(text.no_poll_in_channel)
+            await ctx.message.delete()
+            return
+
+        try:
+            voter_names = poll.get_voter_names()
+            await ctx.author.send(str(voter_names))
+            await ctx.message.delete()
+        except Exception:
+            await ctx.message.delete()

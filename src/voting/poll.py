@@ -1,4 +1,4 @@
-from ffrvoter import FFRVoter
+from voting.ffrvoter import FFRVoter
 import logging
 
 
@@ -37,7 +37,7 @@ class Poll:
     def add_option(self, ctx: any, args: list):
         id = args[0]
         description = args[1]
-        if(id in self.options):
+        if (id in self.options):
             raise KeyError("That id already exists")
         else:
             self.options[id] = {"id": id,
@@ -52,7 +52,8 @@ class Poll:
             count += 1
             r_val += str(count) + ": "
             r_val += option["id"]\
-                + ("" if name_only else " - " + option["description"]) + "\n\n"
+                     + ("" if name_only else " - " + option[
+                "description"]) + "\n\n"
         return r_val
 
     def start_poll(self):
@@ -132,8 +133,9 @@ class Poll:
                             key=lambda val: len(val["voters"]),
                             reverse=True):
             r_val += "\n" + value["id"] + ": "\
-                + str(round(100 * len(value["voters"]) / len(self.voters)))\
-                + "%   " + str(len(value["voters"])) + " votes"
+                     + str(
+                round(100 * len(value["voters"]) / len(self.voters)))\
+                     + "%   " + str(len(value["voters"])) + " votes"
 
         r_val += "\n\nTotal votes: " + str(len(self.voters))
         return r_val
@@ -186,6 +188,13 @@ class Poll:
 
     def get_csv(self):
         return False
+
+    def get_voter_info(self):
+        return False
+
+    def get_voter_names(self):
+        voters = [voter.name for voter in self.voters.values()]
+        return voters
 
 
 class AlreadyVoted(Exception):

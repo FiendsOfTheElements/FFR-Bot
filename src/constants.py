@@ -1,4 +1,3 @@
-
 ADMINS = ["admin", "dev admin"]
 Sleep_Time = 5000
 ducklingchannel = 'duckling-weekly'
@@ -33,35 +32,35 @@ self_assignable_roles_descriptions =\
      "Platypus is a role designated for"
      + " ducklings who are ready to move out"
      + " of the pond and develop their racing"
-     + " skills. This role will be assigned" 
+     + " skills. This role will be assigned"
      + " to ducklings who finish the Duckling"
      + " Derby as well as other racers who"
-     + " would like to race each other and" 
+     + " would like to race each other and"
      + "develop their skills.",
      "Commentary/tracking role.",
      "Role to indicate that you are equipped"
      + " to do restreams",
-      "An optional role"
+     "An optional role"
      + " for people to ping if they want to"
      + " race.",
      "This role is for community members who"
      + " would like to be notified when there"
      + " are races, restreamed on our broadcast"
      + " partners or through multi stream. ",
-      " This role allows the dev"
+     " This role allows the dev"
      + " team to ping individuals in the co"
      + "mmunity to provide testing for new "
      + " flags and features before implement"
      + "ation. ",
-      "An optional role to let"
+     "An optional role to let"
      + " commentary people know to use male"
      + " pronouns for you rather than"
      + " just assuming.",
-      "An optional role"
+     "An optional role"
      + " to let commentary people know to use"
      + " female pronouns for you rather than"
      + " just assuming.",
-      "An optional role"
+     "An optional role"
      + " to let commentary people know to use"
      + " they/them instead of female or male"
      + " pronouns for you rather than just"
@@ -75,4 +74,3 @@ role_requests = "role-requests"
 polls_category = "POLLS"
 voting_age_days = 14
 seat_count = 5
-

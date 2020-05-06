@@ -20,7 +20,7 @@ class Roles(commands.Cog):
             await ctx.message.delete()
             return
         role_clean = role.lower().strip("\"'")
-        if role_clean not in \
+        if role_clean not in\
                 [x.lower() for x in constants.self_assignable_roles]:
             await ctx.author.send('you cannot give yourself the role: '
                                   + role + "\n or that role doesnt exist")
@@ -41,7 +41,7 @@ class Roles(commands.Cog):
             await ctx.message.delete()
             return
         role_clean = role.lower().strip("\"'")
-        if role_clean not in \
+        if role_clean not in\
                 [x.lower() for x in constants.self_assignable_roles]:
             await ctx.author.send('you cannot remove yourself from the role: '
                                   + role + "\n or that role doesnt exist")

@@ -22,7 +22,7 @@ allow_races_bool = True
 
 def allow_seed_rolling(ctx):
     return (ctx.channel.name == constants.call_for_races_channel) or (
-        ctx.channel.id in active_races.keys())
+            ctx.channel.id in active_races.keys())
 
 
 def is_call_for_races(ctx):
@@ -74,7 +74,7 @@ def allow_races(ctx):
 def is_admin(ctx):
     user = ctx.author
     return (any(role.name in constants.ADMINS for role in user.roles)) or (
-        user.id == int(140605120579764226))
+            user.id == int(140605120579764226))
 
 
 class Races(commands.Cog):
@@ -109,7 +109,8 @@ class Races(commands.Cog):
                                  category=get(ctx.guild.categories,
                                               name=constants.races_category),
                                  reason="bot generated channel for a race,"
-                                 + " will be deleted after race finishes")
+                                        + " will be deleted after race "
+                                          "finishes")
         race = Race(racechannel.id, name)
         active_races[racechannel.id] = race
         race.role = await ctx.guild.create_role(name=race.id,
@@ -374,10 +375,14 @@ class Races(commands.Cog):
         multi = await self.multistream(race, all=True, discord=True, ctx=ctx)
         if (race.readycount != len(race.runners)):
             return
-        edited_message = "Race: " + race.name \
-            + " has started! Join the race room with the following command!" \
-            + "\n?spectate " + str(race.id) + "\nWatch the race at: " \
-            + (race.restream if race.restream is not None else multi)
+        edited_message = "Race: " + race.name\
+                         + " has started! Join the race room with the "\
+                           "following command!"\
+                         + "\n?spectate " + str(
+            race.id) + "\nWatch the race at: "\
+                         + (
+                             race.restream if race.restream is not None else
+                             multi)
         await race.message.edit(content=edited_message)
         for i in range(10):
             await ctx.channel.send(str(10 - i))
@@ -458,8 +463,8 @@ class Races(commands.Cog):
         if site:
             url += site + "."
 
-        url += "finalfantasyrandomizer.com/" + "Randomize?s=" + \
-            ("{0:-0{1}x}".format(seed, 8)) + "&f=" + flags
+        url += "finalfantasyrandomizer.com/" + "Randomize?s=" +\
+               ("{0:-0{1}x}".format(seed, 8)) + "&f=" + flags
         return url
 
     @commands.command()
@@ -523,8 +528,8 @@ class Races(commands.Cog):
                         no_twitch_id.append(runner[0])
             ms_tmp = ms_tmp.format(r'/'.join(runners))
             if len(no_twitch_id) != 0:
-                ms_tmp += "\nRunners without a set" \
-                    + " twitch Id: \n" + ", ".join(no_twitch_id)
+                ms_tmp += "\nRunners without a set"\
+                          + " twitch Id: \n" + ", ".join(no_twitch_id)
             return ms_tmp
         race = race.strip()[-5:]
         srlurl = srl_tmp.format(race)
@@ -539,7 +544,10 @@ class Races(commands.Cog):
             entrants = [
                 srl_json['entrants'][k]['twitch']
                 for k in srl_json['entrants'].keys() if (
-                    srl_json['entrants'][k]['statetext'] == "Ready") or all]
+                                                                srl_json[
+                                                                    'entrants'][
+                                                                    k][
+                                                                    'statetext'] == "Ready") or all]
         except KeyError:
             return None
         entrants_2 = r'/'.join(entrants)
@@ -565,6 +573,7 @@ class Races(commands.Cog):
                                        + " twitchid\nset it with the following"
                                        + " command:\n`?twitchid "
                                        + "your_twitch_username`")
+
     # Admin Commands
 
     @commands.command()

@@ -1,5 +1,5 @@
 import unittest
-from stv_election import StvElection
+from voting.stv_election import StvElection
 
 
 class TestStvElection(unittest.TestCase):

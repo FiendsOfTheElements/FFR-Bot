@@ -14,9 +14,8 @@ from discord.utils import get
 
 from races import Races
 from roles import Roles
-from polls import Polls
+from voting.polls import Polls
 import constants
-
 
 # format logging
 logging.basicConfig(
@@ -53,14 +52,14 @@ async def on_ready():
 
 def is_admin(ctx):
     user = ctx.author
-    return (any(role.name in constants.ADMINS for role in user.roles))  \
-        or (user.id == int(140605120579764226))
+    return (any(role.name in constants.ADMINS for role in user.roles))\
+           or (user.id == int(140605120579764226))
 
 
 def allow_seed_rolling(ctx):
-    return (ctx.channel.name == constants.call_for_races_channel) or \
-        (ctx.channel.category_id == get(ctx.guild.categories, name="races")
-         .id)
+    return (ctx.channel.name == constants.call_for_races_channel) or\
+           (ctx.channel.category_id == get(ctx.guild.categories, name="races")
+            .id)
 
 
 @bot.command()
@@ -106,7 +105,7 @@ async def submit(ctx, runnertime: str = None):
     user = ctx.message.author
     role = await getrole(ctx)
     if (role.name == constants.ducklingrole and
-        constants.rolerequiredduckling not in
+            constants.rolerequiredduckling not in
             [role.name for role in user.roles]):
         await user.send("You're not a duckling!")
         await ctx.message.delete()
@@ -117,7 +116,7 @@ async def submit(ctx, runnertime: str = None):
         await ctx.message.delete()
         return
 
-    if role is not None and role not in user.roles \
+    if role is not None and role not in user.roles\
             and role.name in constants.nonadminroles:
         try:
             # convert to seconds using this method to make sure the time is
@@ -166,8 +165,9 @@ async def submit(ctx, runnertime: str = None):
         # build the string for the leaderboard
         new_leaderboard = title + "\n\n"
         for i in range(len(leaderboard_list)):
-            new_leaderboard += str(i + 1) + ")" + \
-                leaderboard_list[i][0] + "-" + leaderboard_list[i][1] + "\n"
+            new_leaderboard += str(i + 1) + ")" +\
+                               leaderboard_list[i][0] + "-" +\
+                               leaderboard_list[i][1] + "\n"
         new_leaderboard += "\nForfeits - " + str(forfeits)
 
         await leaderboard.edit(content=new_leaderboard)
@@ -241,7 +241,7 @@ async def remove(ctx):
                 if leaderboard_list[i][0][1:len(
                         leaderboard_list[i][0]) - 1] == re.sub('[()-]', '',
                                                                player
-                                                               .display_name):
+                                                                       .display_name):
                     del leaderboard_list[i]
                     await player.remove_roles(remove_role)
                     await changeparticipants(ctx, increment=False,
@@ -255,8 +255,9 @@ async def remove(ctx):
         # build the string for the leaderboard
         new_leaderboard = title + "\n\n"
         for i in range(len(leaderboard_list)):
-            new_leaderboard += str(i + 1) + ")" + \
-                leaderboard_list[i][0] + "-" + leaderboard_list[i][1] + "\n"
+            new_leaderboard += str(i + 1) + ")" +\
+                               leaderboard_list[i][0] + "-" +\
+                               leaderboard_list[i][1] + "\n"
         new_leaderboard += "\nForfeits - " + str(forfeits)
 
         await leaderboard.edit(content=new_leaderboard)
@@ -282,14 +283,15 @@ async def createleaderboard(ctx, name):
     # gross way of doing this, works for now
     if role in user.roles and role.name == constants.challengeseedadmin:
         await get(ctx.message.guild.channels,
-                  name=constants.challengeseedleaderboard) \
+                  name=constants.challengeseedleaderboard)\
             .send(name + "\n\nForfeits - 0")
         await get(ctx.message.guild.channels,
                   name=constants.challengeseedchannel)\
             .send("Number of participants: 0")
 
     elif role in user.roles and role.name == constants.asyncseedadmin:
-        await get(ctx.message.guild.channels, name=constants.asyncleaderboard)\
+        await get(ctx.message.guild.channels,
+                  name=constants.asyncleaderboard)\
             .send(name + "\n\nForfeits - 0")
         await get(ctx.message.guild.channels, name=constants.asyncchannel)\
             .send("Number of participants: 0")
@@ -319,7 +321,7 @@ async def ff(ctx):
     user = ctx.message.author
     role = await getrole(ctx)
 
-    if role is not None and role not in user.roles \
+    if role is not None and role not in user.roles\
             and role.name in constants.nonadminroles:
 
         await user.add_roles(role)
@@ -335,6 +337,7 @@ async def ff(ctx):
         await changeparticipants(ctx)
     else:
         await ctx.message.delete()
+
 
 # @bot.command()
 # async def testexit():
@@ -496,14 +499,16 @@ async def whoami(ctx):
     await ctx.author.send(ctx.author.id)
     await ctx.message.delete()
 
+
 @bot.command()
 async def roll(ctx, dice):
     match = re.match(r"((\d{1,3})?d\d{1,9})", dice)
     if match == None:
-        await ctx.message.channel.send("Roll arguments must be in the form [N]dM ie. 3d6, d8")
+        await ctx.message.channel.send(
+            "Roll arguments must be in the form [N]dM ie. 3d6, d8")
         return
     rollargs = match.group().split('d')
-    
+
     try:
         rollargs[0] = int(rollargs[0])
     except:
@@ -513,6 +518,7 @@ async def roll(ctx, dice):
     textresult = "{} result: **{}**".format(match.group(), sum(result))
     await ctx.message.channel.send(textresult)
 
+
 @bot.command()
 async def coin(ctx):
     coinres = ""
@@ -521,7 +527,6 @@ async def coin(ctx):
     else:
         coinres = "Tails"
     await ctx.message.channel.send("Coin landed on: **{}**".format(coinres))
-
 
 
 def handle_exit(client, loop):
@@ -564,6 +569,5 @@ def run_client(client, *args, **kwargs):
 with open('token.txt', 'r') as f:
     token = f.read()
 token = token.strip()
-
 
 run_client(bot, token)

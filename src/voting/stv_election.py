@@ -1,6 +1,6 @@
 import math
-from poll import Poll, AlreadyVoted, VoteNotOpen, VoteAlreadyClosed
-from ffrvoter import FFRVoter
+from voting.poll import Poll, AlreadyVoted, VoteNotOpen, VoteAlreadyClosed
+from voting.ffrvoter import FFRVoter
 import logging
 import csv
 
@@ -42,7 +42,7 @@ class StvElection(Poll):
         id = str(user.id)
         mention = user.mention
         display_name = user.display_name
-        if(id in self.options):
+        if (id in self.options):
             raise KeyError("That id already exists")
         else:
             self.options[id] = {"id": id,
@@ -116,7 +116,7 @@ class StvElection(Poll):
         logging.info(str(ballot_args) + "\n" + str(ballot))
 
         for key, value in sorted(ballot.items(), key=lambda rank:
-                                 int(rank[0])):
+        int(rank[0])):
             option = self.options[value]
             ballot_text += (str(key)
                             + " | "
@@ -185,9 +185,9 @@ class StvElection(Poll):
         round_num = 1
         count = None
 
-        while(len(winners) < self.seat_count
-              and len(winners) + len(remaining_options) != self.seat_count
-              and len(tied) == 0):
+        while (len(winners) < self.seat_count
+               and len(winners) + len(remaining_options) != self.seat_count
+               and len(tied) == 0):
 
             count = self.update_count(count,
                                       round_num,
@@ -234,7 +234,7 @@ class StvElection(Poll):
                 if (len(
                         remaining_options -
                         options_to_remove)
-                        + len(winners)) < self.seat_count:
+                    + len(winners)) < self.seat_count:
                     tied = options_to_remove
                 else:
                     remaining_options -= options_to_remove
@@ -309,7 +309,7 @@ class StvElection(Poll):
                                     "voter's earlier option won: "
                                     + str(removed_option_key))
                                 total = count[str(round_num - 1)
-                                              ][removed_option_key]["total"]
+                                ][removed_option_key]["total"]
                                 surplus = total - quota
                                 old_weight = str(vote["weight"])
                                 vote["weight"] *= surplus / total
@@ -349,7 +349,8 @@ class StvElection(Poll):
 
     def calc_quota(self):
         """
-        https://en.wikipedia.org/wiki/Single_transferable_vote#More_refined_method:_setting_the_quota
+        https://en.wikipedia.org/wiki/Single_transferable_vote
+        #More_refined_method:_setting_the_quota
 
         :return: the required number of votes to be elected
         :rtype: int
@@ -373,3 +374,29 @@ class StvElection(Poll):
             writer.writerows(votes)
         csvFile.close()
         return name
+
+    def get_voter_info(self):
+        votes = []
+        for voter in self.voters.values():
+            vote = voter.get_vote()
+            for k in vote.keys():
+                vote[k] += (" - "
+                            + self.options[vote[k]]["display_name"]
+                            + " - "
+                            + self.options[vote[k]]["mention"])
+            vote["voter name"] = voter.name
+            vote["voter id"] = voter.id
+            votes.append(vote)
+
+        name = "voter_info.csv"
+        with open(name, 'w') as csvFile:
+            fields = ["voter name", "voter id"]
+            fields.extend(
+                [str(x) for x in range(1, len(self.options) + 1)])
+            logging.info(fields)
+            writer = csv.DictWriter(csvFile, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(votes)
+        csvFile.close()
+        return name
+

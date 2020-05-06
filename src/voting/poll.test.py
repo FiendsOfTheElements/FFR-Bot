@@ -1,5 +1,5 @@
 import unittest
-from poll import Poll
+from voting.poll import Poll
 
 
 class TestPoll(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestPoll(unittest.TestCase):
         poll.start_poll()
         poll.submit_vote("test pollr id", "test name", ["1"])
         self.assertEqual(str(poll.voters), r"{'test pollr id': test pollr id "
-                         r"test name option #1}")
+                                           r"test name option #1}")
 
     def test_update_description(self):
         poll = Poll("test", "fake id")
