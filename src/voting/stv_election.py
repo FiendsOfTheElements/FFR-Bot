@@ -399,4 +399,3 @@ class StvElection(Poll):
             writer.writerows(votes)
         csvFile.close()
         return name
-

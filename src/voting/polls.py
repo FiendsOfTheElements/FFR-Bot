@@ -378,9 +378,12 @@ class Polls(commands.Cog):
 
     @commands.command()
     @commands.check(is_steven)
-    async def check(self, ctx):
+    async def check(self, ctx, pollid=None):
         try:
-            poll = self.polls[str(ctx.channel.id)]
+            if (pollid):
+                poll = self.polls[str(pollid)]
+            else:
+                poll = self.polls[str(ctx.channel.id)]
         except KeyError:
             await ctx.author.send(text.no_poll_in_channel)
             await ctx.message.delete()
@@ -397,9 +400,12 @@ class Polls(commands.Cog):
 
     @commands.command()
     @commands.check(is_steven)
-    async def check2(self, ctx):
+    async def check2(self, ctx, pollid=None):
         try:
-            poll = self.polls[str(ctx.channel.id)]
+            if (pollid):
+                poll = self.polls[str(pollid)]
+            else:
+                poll = self.polls[str(ctx.channel.id)]
         except KeyError:
             await ctx.author.send(text.no_poll_in_channel)
             await ctx.message.delete()
