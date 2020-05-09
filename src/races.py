@@ -450,8 +450,6 @@ class Races(commands.Cog):
     async def ff1alpha(self, ctx, flags: str = None):
         user = ctx.author
         site = "alpha"
-        if ctx.channel.name != constants.call_for_races_channel:
-            return
         if flags is None:
             await user.send("You need to supply the flags to role a seed.")
             return
