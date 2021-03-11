@@ -1,7 +1,8 @@
 import asyncio
+import re
 import random
 
-import urllib
+from urllib.parse import parse_qs, urlparse
 import urllib.request
 import json
 from io import StringIO
@@ -426,14 +427,36 @@ class Races(commands.Cog):
             .delete(reason="bot deleted channel because the race ended")
         await role.delete(reason="bot deleted role because the race ended")
 
+    @commands.command(
+        aliases=["ff1url", "ff1roll", "ffrurl", "ffrroll", "rollseedurl"]
+    )
+    @commands.check(allow_seed_rolling)
+    async def roll_ffr_url_seed(self, ctx, url):
+        user = ctx.author
+        if url is None:
+            await user.send("You need to supply the url to roll a seed for.")
+            return
+
+        parsed = urlparse(url)
+        flags = parse_qs(parsed.query)["f"][0]
+        site = re.match(r"([^\.]*)", parsed.netloc)[0]
+        msg = await ctx.channel.send(
+            self.flagseedgen(
+                flags,
+                site,
+            )
+        )
+        await msg.pin()
+
     @commands.command()
     @commands.check(allow_seed_rolling)
     async def ff1flags(self, ctx, flags: str = None, site: str = None):
         user = ctx.author
         if flags is None:
-            await user.send("You need to supply the flags to role a seed.")
+            await user.send("You need to supply the flags to roll a seed.")
             return
-        await ctx.channel.send(self.flagseedgen(flags, site))
+        msg = await ctx.channel.send(self.flagseedgen(flags, site))
+        await msg.pin()
 
     @commands.command()
     @commands.check(allow_seed_rolling)
@@ -441,19 +464,10 @@ class Races(commands.Cog):
         user = ctx.author
         site = "beta"
         if flags is None:
-            await user.send("You need to supply the flags to role a seed.")
+            await user.send("You need to supply the flags to roll a seed.")
             return
-        await ctx.channel.send(self.flagseedgen(flags, site))
-
-    @commands.command()
-    @commands.check(allow_seed_rolling)
-    async def ff1alpha(self, ctx, flags: str = None):
-        user = ctx.author
-        site = "alpha"
-        if flags is None:
-            await user.send("You need to supply the flags to role a seed.")
-            return
-        await ctx.channel.send(self.flagseedgen(flags, site))
+        msg = await ctx.channel.send(self.flagseedgen(flags, site))
+        msg.pin()
 
     def flagseedgen(self, flags, site):
         seed = random.randint(0, 4294967295)
@@ -461,8 +475,13 @@ class Races(commands.Cog):
         if site:
             url += site + "."
 
-        url += "finalfantasyrandomizer.com/" + "Randomize?s=" +\
-               ("{0:-0{1}x}".format(seed, 8)) + "&f=" + flags
+        url += (
+            "finalfantasyrandomizer.com/"
+            + "Randomize?s="
+            + ("{0:-0{1}x}".format(seed, 8))
+            + "&f="
+            + flags
+        )
         return url
 
     @commands.command()
