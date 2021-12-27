@@ -22,12 +22,12 @@ allow_races_bool = True
 
 
 def allow_seed_rolling(ctx):
-    return (ctx.channel.name == constants.call_for_races_channel) or (
+    return (ctx.channel.name in constants.call_for_races_channels) or (
         ctx.channel.id in active_races.keys())
 
 
 def is_call_for_races(ctx):
-    return ctx.channel.name == constants.call_for_races_channel
+    return ctx.channel.name in constants.call_for_races_channels
 
 
 def is_race_room(ctx):
