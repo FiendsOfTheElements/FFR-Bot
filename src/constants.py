@@ -37,7 +37,7 @@ self_assignable_roles =\
      "No Pronoun"
      "IronGoler",
      "co-op flag tester",
-     "APPingMeToPlay"
+     "AP Ping Me To Play"
     ]
 self_assignable_roles_descriptions =\
     ["Optional new player role. Allows you to"

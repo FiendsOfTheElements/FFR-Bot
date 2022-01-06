@@ -11,7 +11,7 @@ from discord import DiscordException
 from discord.ext import commands
 from discord.utils import get
 
-from ffrrace import Race
+from ffrrace import Race, RaceNotLockable
 import logging
 
 import constants
@@ -132,7 +132,6 @@ class Races(commands.Cog):
         teamslist[racechannel.id] = dict()
         race.owner = ctx.author.id
 
-    # Note: This will likely change to accommodate multiworld specific needs
     @commands.command(aliases=['ap', 'multiworld', 'archipelago'])
     @commands.check(is_call_for_multiworld)
     @commands.check(allow_races)
@@ -148,7 +147,7 @@ class Races(commands.Cog):
                                  reason="bot generated channel for a multiworld,"
                                         + " will be deleted after multiworld "
                                           "finishes")
-        race = Race(racechannel.id, name)
+        race = Race(racechannel.id, name, lockable=True)
         active_races[racechannel.id] = race
         race.role = await ctx.guild.create_role(name=race.id,
                                                 reason="role for a multiworld")
@@ -156,7 +155,7 @@ class Races(commands.Cog):
         await racechannel.set_permissions(race.role, read_messages=True,
                                           send_messages=True)
         race.message = await ctx.channel.send(
-            "join this race with the following ?join command, @ any"
+            "join this multiworld with the following ?join command, @ any"
             + " people that will be on your team if playing coop. "
             + "Spectate the race with the following ?spectate command\n"
             + "?join " + str(racechannel.id) + "\n"
@@ -173,6 +172,27 @@ class Races(commands.Cog):
         await ctx.channel.send('deleting this race in 5 minutes')
         await self.removeraceroom(ctx, 300)
 
+    @commands.command()
+    @is_race_started(toggle=False)
+    @commands.check(is_race_owner)
+    @commands.check(is_race_room)
+    async def lockrace(self, ctx):
+        try:
+            race = active_races[ctx.channel.id]
+            race.lockRace()
+            await ctx.channel.send('Race is now locked. New players cannot be added.')
+        except RaceNotLockable:
+            await ctx.channel.send('This race cannot be locked')
+
+    @commands.command()
+    @is_race_started(toggle=False)
+    @commands.check(is_race_owner)
+    @commands.check(is_race_room)
+    async def unlockrace(self, ctx):
+        race = active_races[ctx.channel.id]
+        race.unlockRace()
+        await ctx.channel.send('Race is now unlocked. New players can be added.')
+
     @commands.command(aliases=["enter"])
     @commands.check(allow_seed_rolling)
     async def join(self, ctx, id=None, name=None):
@@ -187,7 +207,10 @@ class Races(commands.Cog):
         id = int(id)
         try:
             if active_races[id].started is True:
-                ctx.channel.send("that race has already started")
+                await ctx.channel.send("That race has already started")
+                return
+            if active_races[id].islocked is True:
+                await ctx.channel.send("That race is locked. No new racers can join.")
                 return
         except KeyError:
             await ctx.author.send("That id doesnt exist")
@@ -303,7 +326,7 @@ class Races(commands.Cog):
         msg = race.getUpdate()
         await ctx.channel.send(msg)
 
-    @commands.command()
+    @commands.command(aliases=['dun'])
     @is_race_started()
     @is_runner()
     @commands.check(is_race_room)
@@ -317,7 +340,7 @@ class Races(commands.Cog):
         except KeyError:
             await ctx.channel.send("Key Error in 'done' command")
 
-    @commands.command(aliases=["unforfeit"])
+    @commands.command(aliases=['unforfeit', 'uf'])
     @is_race_started()
     @is_runner()
     @commands.check(is_race_room)
@@ -329,7 +352,7 @@ class Races(commands.Cog):
         except KeyError:
             await ctx.channel.send("Key Error in 'undone' command")
 
-    @commands.command()
+    @commands.command(aliases=['f'])
     @is_race_started()
     @is_runner()
     @commands.check(is_race_room)

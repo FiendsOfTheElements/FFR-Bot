@@ -13,7 +13,7 @@ class Race:
     A class to model a FFR race
     """
 
-    def __init__(self, id, name=None, flags=None):
+    def __init__(self, id, name=None, lockable=False, flags=None):
         self.id = id
         self.name = name
         self.flags = flags
@@ -25,15 +25,20 @@ class Race:
         self.readycount = 0
         self.message = None
         self.restream = None
+        self.lockable = lockable
+        self.islocked = False
 
     # def savedata(self):
     #     redis_db.hmset('active_races', json.dumps(active_races))
     #
 
     def addRunner(self, runnerid, runner):
-        self.runners[runnerid] = dict(
-            [("name", runner), ("stime", None), ("etime", None),
-             ("ready", False)])
+        if not self.islocked:
+            self.runners[runnerid] = dict(
+                [("name", runner), ("stime", None), ("etime", None),
+                 ("ready", False)])
+        else:
+            raise RaceLocked
 
     def removeRunner(self, runnerid):
         del self.runners[runnerid]
@@ -114,3 +119,26 @@ class Race:
                 rstring += str(timedelta(microseconds=round(
                     runner["etime"] - runner["stime"], -3) // 1000)) + "\n"
         return rstring
+
+    def lockRace(self):
+        if self.lockable is True:
+            self.islocked = True
+        else:
+            raise RaceNotLockable
+
+    def unlockRace(self):
+        if self.islocked is True:
+            self.islocked = False
+
+
+class RaceLocked(Exception):
+    """
+    raised when attempting to add runners to a locked race
+    """
+    pass
+
+class RaceNotLockable(Exception):
+    """
+    raised when attempting to lock a race that is not lockable
+    """
+    pass
