@@ -180,6 +180,11 @@ class Races(commands.Cog):
         try:
             race = active_races[ctx.channel.id]
             race.lockRace()
+            edited_message = "Race: " + race.name \
+                             + " is now locked! Join the race room with the " \
+                               "following command!" \
+                             + "\n?spectate " + str(race.id)
+            await race.message.edit(content=edited_message)
             await ctx.channel.send('Race is now locked. New players cannot be added.')
         except RaceNotLockable:
             await ctx.channel.send('This race cannot be locked')
