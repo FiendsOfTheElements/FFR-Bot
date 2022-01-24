@@ -34,7 +34,7 @@ self_assignable_roles =\
      "He/Him",
      "She/Her",
      "They/Them",
-     "No Pronoun"
+     "No Pronoun",
      "IronGoler",
      "co-op flag tester",
      "AP Ping Me To Play"
