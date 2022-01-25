@@ -340,7 +340,7 @@ class Races(commands.Cog):
         msg = race.getUpdate()
         await ctx.channel.send(msg)
 
-    @commands.command(aliases=['dun'])
+    @commands.command()
     @is_race_started()
     @is_runner()
     @commands.check(is_race_room)
@@ -354,7 +354,7 @@ class Races(commands.Cog):
         except KeyError:
             await ctx.channel.send("Key Error in 'done' command")
 
-    @commands.command(aliases=['unforfeit', 'uf'])
+    @commands.command(aliases=['unforfeit'])
     @is_race_started()
     @is_runner()
     @commands.check(is_race_room)
@@ -366,7 +366,7 @@ class Races(commands.Cog):
         except KeyError:
             await ctx.channel.send("Key Error in 'undone' command")
 
-    @commands.command(aliases=['f'])
+    @commands.command()
     @is_race_started()
     @is_runner()
     @commands.check(is_race_room)
