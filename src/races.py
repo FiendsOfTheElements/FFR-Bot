@@ -196,6 +196,12 @@ class Races(commands.Cog):
     async def unlockrace(self, ctx):
         race = active_races[ctx.channel.id]
         race.unlockRace()
+        edited_message = "join this multiworld with the following ?join command, @ any" \
+            + " people that will be on your team if playing coop. " \
+            + "Spectate the race with the following ?spectate command\n" \
+            + "?join " + str(ctx.channel.id) + "\n" \
+            + "?spectate " + str(ctx.channel.id)
+        await race.message.edit(content=edited_message)
         await ctx.channel.send('Race is now unlocked. New players can be added.')
 
     @commands.command(aliases=["enter"])
