@@ -506,10 +506,10 @@ class Races(commands.Cog):
         await role.delete(reason="bot deleted role because the race ended")
 
     @commands.command(
-        aliases=["ff1url", "ff1roll", "ffrurl", "ffrroll", "rollseedurl"]
+        aliases=["ff1url", "ff1roll", "ffrroll", "rollseedurl", "roll_ffr_url_seed"]
     )
     @commands.check(allow_seed_rolling)
-    async def roll_ffr_url_seed(self, ctx, url):
+    async def ffrurl(self, ctx, url):
         user = ctx.author
         if url is None:
             await user.send("You need to supply the url to roll a seed for.")
@@ -535,27 +535,6 @@ class Races(commands.Cog):
             )
         )
         await msg.pin()
-
-    @commands.command()
-    @commands.check(allow_seed_rolling)
-    async def ff1flags(self, ctx, flags: str = None, site: str = None):
-        user = ctx.author
-        if flags is None:
-            await user.send("You need to supply the flags to roll a seed.")
-            return
-        msg = await ctx.channel.send(self.flagseedgen(flags, site))
-        await msg.pin()
-
-    @commands.command()
-    @commands.check(allow_seed_rolling)
-    async def ff1beta(self, ctx, flags: str = None):
-        user = ctx.author
-        site = "beta"
-        if flags is None:
-            await user.send("You need to supply the flags to roll a seed.")
-            return
-        msg = await ctx.channel.send(self.flagseedgen(flags, site))
-        msg.pin()
 
     def flagseedgen(self, flags, site):
         seed = random.randint(0, 4294967295)
