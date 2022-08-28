@@ -31,6 +31,7 @@ logging.basicConfig(
 
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True
 
 description = "FFR discord bot"
 
@@ -46,9 +47,7 @@ redis_pool = redis.ConnectionPool(host=os.environ.get(
 redis_races = redis.StrictRedis(connection_pool=redis_pool)
 redis_polls = redis.StrictRedis(connection_pool=redis_pool)
 
-bot.add_cog(Races(bot, redis_races))
-bot.add_cog(Roles(bot))
-bot.add_cog(Polls(bot, redis_polls))
+
 
 
 @bot.event
@@ -560,26 +559,16 @@ def handle_exit(client, loop):
             pass
 
 
-def run_client(client, *args, **kwargs):
-    loop = asyncio.get_event_loop()
-    while True:
-        try:
-            logging.info("Starting connection")
-            loop.run_until_complete(client.start(*args, **kwargs))
-        except KeyboardInterrupt:
-            handle_exit(client, loop)
-            client.loop.close()
-            logging.info("Program ended")
-            break
-        except Exception as e:
-            logging.exception(e)
-            handle_exit(client, loop)
-        logging.info("Waiting until restart")
-        time.sleep(constants.Sleep_Time)
+async def main(client, token):
+    await bot.add_cog(Races(bot, redis_races))
+    await bot.add_cog(Roles(bot))
+    await bot.add_cog(Polls(bot, redis_polls))
 
+    async with client:
+        await client.start(token)
 
 with open('token.txt', 'r') as f:
     token = f.read()
 token = token.strip()
 
-run_client(bot, token)
+asyncio.run(main(bot, token))
