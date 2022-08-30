@@ -220,8 +220,8 @@ async def remove(ctx):
         remove_role = get(roles, name=constants.asyncseedrole)
         participantnumchannel = get(channels, name=constants.asyncchannel)
     if role in user.roles:
-        leaderboard = await channel.history(limit=100).flatten()
-        for x in leaderboard:
+        leaderboard =  channel.history(limit=100)
+        async for x in leaderboard:
             if bot.user == x.author:
                 leaderboard = x
                 break
@@ -423,22 +423,21 @@ async def getleaderboard(ctx):
     ducklingseed = get(channels, name=constants.ducklingchannel)
 
     if channel == challengeseed:
-        leaderboard = await get(
+        leaderboard =  get(
             channels,
             name=constants.challengeseedleaderboard).history(
-            limit=100).flatten()
+            limit=100)
     elif channel == asyncseed:
-        leaderboard = await get(channels, name=constants.asyncleaderboard)\
-            .history(limit=100).flatten()
+        leaderboard =  get(channels, name=constants.asyncleaderboard).history(limit=100)
     elif channel == ducklingseed:
-        leaderboard = await get(channels,
+        leaderboard =  get(channels,
                                 name=constants.ducklingleaderboard).history(
-            limit=100).flatten()
+            limit=100)
     else:
         await user.send("That command isn't allowed here.")
         return None
 
-    for x in leaderboard:
+    async for x in leaderboard:
         if bot.user == x.author:
             leaderboard = x
             break
@@ -482,10 +481,8 @@ async def changeparticipants(ctx, increment=True, channel=None):
     :return: None
     """
 
-    participants: List[Message] = await (
-        ctx.message.channel if channel is None else channel).\
-        history(limit=100).flatten()
-    for x in participants:
+    participants: List[Message] = (ctx.message.channel if channel is None else channel).history(limit=100)
+    async for x in participants:
         if x.author == bot.user:
             participants = x
             break
