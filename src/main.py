@@ -86,9 +86,12 @@ async def purgemembers(ctx):
         if role.name == constants.challengeseedadmin:
             role = get(ctx.message.guild.roles,
                        name=constants.challengeseedrole)
-        else:
+        elif role.name == constants.asyncseedadmin:
             role = get(ctx.message.guild.roles,
                        name=constants.asyncseedrole)
+        else:
+            role = get(ctx.message.guild.roles,
+                       name=constants.ducklingrole)
         members = ctx.message.guild.members
         role_members = [x for x in members if role in x.roles]
 
