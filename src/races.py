@@ -118,7 +118,8 @@ class Races(commands.Cog):
         race = Race(racechannel.id, name)
         active_races[racechannel.id] = race
         race.role = await ctx.guild.create_role(name=race.id,
-                                                reason="role for a race")
+                                                reason="role for a race",
+                                                mentionable=True)
         race.channel = racechannel
         await racechannel.set_permissions(race.role, read_messages=True,
                                           send_messages=True)
@@ -468,6 +469,8 @@ class Races(commands.Cog):
                              race.restream if race.restream is not None else
                              multi)
         await race.message.edit(content=edited_message)
+        await ctx.channel.send("@" + race.id + " The race is about to begin!")
+        await asyncio.sleep(1)
         for i in range(10):
             await ctx.channel.send(str(10 - i))
             await asyncio.sleep(1)
