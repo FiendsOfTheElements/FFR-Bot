@@ -1,0 +1,17 @@
+services:
+  bot:
+    build: .
+    image: fiendsoftheelements/ffr-bot
+    environment:
+      REDIS_HOST: redis
+    links:
+      - redis
+    restart: always
+  redis:
+    image: redis
+    command: redis-server --appendonly yes
+    volumes:
+      - ffrbot-data:/data
+    restart: always
+volumes:
+  ffrbot-data: {}
