@@ -522,34 +522,21 @@ class Races(commands.Cog):
 
         parsed = urlparse(url)
         flags = parse_qs(parsed.query)["f"][0]
-        try:
-            hostname_divided = parsed.hostname.split(".")
-        except AttributeError:
-            # supports no https://
-            hostname_divided = url.split(".")
-        logging.info(hostname_divided)
-        if hostname_divided[1] == "finalfantasyrandomizer":
-            site = hostname_divided[0]
-        else:
-            site = None
 
         msg = await ctx.channel.send(
             self.flagseedgen(
                 flags,
-                site,
+                parsed.hostname,
             )
         )
         await msg.pin()
 
     def flagseedgen(self, flags, site):
         seed = random.randint(0, 4294967295)
-        url = "<https://"
-        if site:
-            url += site + "."
+        url = "<https://" + site
 
         url += (
-            "finalfantasyrandomizer.com/"
-            + "Randomize?s="
+            "/Randomize?s="
             + ("{0:-0{1}x}".format(seed, 8))
             + "&f="
             + flags
