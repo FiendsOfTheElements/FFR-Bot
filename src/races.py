@@ -333,8 +333,9 @@ class Races(commands.Cog):
         try:
             race = active_races[ctx.channel.id]
             msg = race.done(aliases[race.id][ctx.author.id])
-            await ctx.channel.send(msg)
-            if (race.isFinsihed()):
+            thread_msg = await ctx.channel.send(msg)
+            if (race.isFinished()):
+                await thread_msg.pin()  # pin the race results message
                 await self.endrace(ctx, msg)
         except KeyError:
             await ctx.channel.send("Key Error in 'done' command")
@@ -359,8 +360,9 @@ class Races(commands.Cog):
         try:
             race = active_races[ctx.channel.id]
             msg = race.forfeit(aliases[race.id][ctx.author.id])
-            await ctx.channel.send(msg)
+            thread_msg = await ctx.channel.send(msg)
             if (all(r["etime"] is not None for r in race.runners.values())):
+                await thread_msg.pin()  # pin the race results message
                 await self.endrace(ctx, msg)
         except KeyError:
             await ctx.channel.send("Key Error in the 'forfeit' command")
