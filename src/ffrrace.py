@@ -66,7 +66,7 @@ class Race:
         self.runners[runnerid]["etime"] = etime
 
         if (all(r["etime"] is not None for r in self.runners.values())):
-            return self.finishRace()
+            return self.finishRace(True)
 
         rval = timedelta(microseconds=round(
             etime - self.runners[runnerid]["stime"], -3) // 1000)
@@ -79,7 +79,7 @@ class Race:
     def forfeit(self, runnerid):
         self.runners[runnerid]["etime"] = maxsize
         if (all(r["etime"] is not None for r in self.runners.values())):
-            return self.finishRace()
+            return self.finishRace(True)
 
         return self.runners[runnerid]["name"] + " forfeited"
 
@@ -106,9 +106,10 @@ class Race:
             return timedelta(microseconds=round(
                 time.perf_counter_ns() - i["stime"], -3) // 1000)
 
-    def finishRace(self):
+    def finishRace(self, spoiler=False):
         rstring = "Race " + self.name + " results:\n\n"
         place = 0
+        rstring += "||" if spoiler else ""
         for runner in sorted(list(self.runners.values()),
                              key=lambda k: k["etime"]):
             place += 1
@@ -118,6 +119,7 @@ class Race:
             else:
                 rstring += str(timedelta(microseconds=round(
                     runner["etime"] - runner["stime"], -3) // 1000)) + "\n"
+        rstring += "||" if spoiler else ""
         return rstring
 
     def lockRace(self):
@@ -136,6 +138,7 @@ class RaceLocked(Exception):
     raised when attempting to add runners to a locked race
     """
     pass
+
 
 class RaceNotLockable(Exception):
     """
