@@ -68,7 +68,7 @@ class Race:
         runner["etime"] = etime
 
         if (self.isFinished()):
-            return self.getFinishedRaceMessage()
+            return self.getFinishedRaceMessage(True)
 
         rval = self._getTimeDeltaStr(etime, runner["stime"])
         return runner["name"] + ": " + rval
@@ -116,9 +116,7 @@ class Race:
             if (runner["etime"] is maxsize):
                 rstring += "Forfeited\n"
             else:
-                rstring += str(timedelta(microseconds=round(
-                    runner["etime"] - runner["stime"], -3) // 1000)) + "\n"
-        rstring += "||" if spoiler else ""
+                rstring += self._getTimeDeltaStr(runner["etime"], runner["stime"]) + "\n"
         return rstring
 
     def lockRace(self):
