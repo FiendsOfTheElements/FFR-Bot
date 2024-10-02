@@ -334,7 +334,7 @@ class Races(commands.Cog):
             race = active_races[ctx.channel.id]
             msg = race.done(aliases[race.id][ctx.author.id])
             await ctx.channel.send(msg)
-            if (all(r["etime"] is not None for r in race.runners.values())):
+            if (race.isFinsihed()):
                 await self.endrace(ctx, msg)
         except KeyError:
             await ctx.channel.send("Key Error in 'done' command")

@@ -63,14 +63,15 @@ class Race:
 
     def done(self, runnerid):
         etime = time.perf_counter_ns()
-        self.runners[runnerid]["etime"] = etime
+        runner = self.runners[runnerid]
 
-        if (all(r["etime"] is not None for r in self.runners.values())):
-            return self.finishRace()
+        runner["etime"] = etime
 
-        rval = timedelta(microseconds=round(
-            etime - self.runners[runnerid]["stime"], -3) // 1000)
-        return self.runners[runnerid]["name"] + ": " + str(rval)
+        if (self.isFinished()):
+            return self.getFinishedRaceMessage()
+
+        rval = self._getTimeDeltaStr(etime, runner["stime"])
+        return runner["name"] + ": " + rval
 
     def undone(self, runnerid):
         self.runners[runnerid]["etime"] = None
@@ -78,8 +79,8 @@ class Race:
 
     def forfeit(self, runnerid):
         self.runners[runnerid]["etime"] = maxsize
-        if (all(r["etime"] is not None for r in self.runners.values())):
-            return self.finishRace()
+        if (self.isFinished()):
+            return self.getFinishedRaceMessage()
 
         return self.runners[runnerid]["name"] + " forfeited"
 
@@ -91,9 +92,8 @@ class Race:
                 if (runner["etime"] is maxsize):
                     rval += "forfeited"
                 elif (runner["etime"] is not None):
-                    time = timedelta(microseconds=round(
-                        runner["etime"] - runner["stime"], -3) // 1000)
-                    rval += "done: " + str(time)
+                    time = self._getTimeDeltaStr(runner["etime"], runner["stime"])
+                    rval += "done: " + time
                 else:
                     rval += "still going"
             else:
@@ -101,10 +101,9 @@ class Race:
             rval += "\n"
         return rval
 
-    def getTime(self):
-        for i in self.runners.values():
-            return timedelta(microseconds=round(
-                time.perf_counter_ns() - i["stime"], -3) // 1000)
+    def getTime(self):       
+        first = next(iter(self.runners.values()))
+        return self._getTimeDeltaStr(time.perf_counter_ns(), first["stime"])
 
     def finishRace(self):
         rstring = "Race " + self.name + " results:\n\n"
@@ -116,8 +115,7 @@ class Race:
             if (runner["etime"] is maxsize):
                 rstring += "Forfeited\n"
             else:
-                rstring += str(timedelta(microseconds=round(
-                    runner["etime"] - runner["stime"], -3) // 1000)) + "\n"
+                rstring += self._getTimeDeltaStr(runner["etime"], runner["stime"]) + "\n"
         return rstring
 
     def lockRace(self):
@@ -130,12 +128,20 @@ class Race:
         if self.islocked is True:
             self.islocked = False
 
+    def isFinished(self):
+        return all(r["etime"] is not None for r in self.runners.values())
+
+    def _getTimeDeltaStr(self, end_time, start_time):
+        return str(timedelta(microseconds=round(
+            end_time - start_time, -3) // 1000))
+
 
 class RaceLocked(Exception):
     """
     raised when attempting to add runners to a locked race
     """
     pass
+
 
 class RaceNotLockable(Exception):
     """
