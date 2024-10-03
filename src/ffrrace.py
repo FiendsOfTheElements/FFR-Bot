@@ -81,7 +81,6 @@ class Race:
         self.runners[runnerid]["etime"] = maxsize
         if (self.isFinished()):
             return self.getFinishedRaceMessage(True)
-
         return self.runners[runnerid]["name"] + " forfeited"
 
     def getUpdate(self):
@@ -117,6 +116,7 @@ class Race:
                 rstring += "Forfeited\n"
             else:
                 rstring += self._getTimeDeltaStr(runner["etime"], runner["stime"])+"\n"
+        rstring += "||" if spoiler else ""
         return rstring
 
     def lockRace(self):
