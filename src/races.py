@@ -192,7 +192,7 @@ class Races(commands.Cog):
             await ctx.channel.send('Race is already unlocked.')
 
     @commands.command(aliases=["enter"])
-    async def join(self, ctx, id=None, name=None):
+    async def join(self, ctx, name=None):
         try:
             await ctx.message.delete()
         except DiscordException:
@@ -205,9 +205,7 @@ class Races(commands.Cog):
             )
             return
 
-        if id is None:
-            id = ctx.channel.id
-        id = int(id)
+        id = int(ctx.channel.id)
         try:
             if active_races[id].started is True:
                 await ctx.channel.send("This race has already started")
