@@ -1,8 +1,8 @@
 import time
 from datetime import timedelta
 from sys import maxsize
-import redis
 import os
+import redis
 
 redis_db = redis.Redis(host=os.environ.get("REDIS_HOST", "localhost"),
                        port=int(os.environ.get("REDIS_PORT", "6379")))
@@ -91,8 +91,8 @@ class Race:
                 if (runner["etime"] is maxsize):
                     rval += "forfeited"
                 elif (runner["etime"] is not None):
-                    time = self._getTimeDeltaStr(runner["etime"], runner["stime"])
-                    rval += "done: " + time
+                    runner_time = self._getTimeDeltaStr(runner["etime"], runner["stime"])
+                    rval += "done: " + runner_time
                 else:
                     rval += "still going"
             else:

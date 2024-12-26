@@ -1,5 +1,6 @@
 import asyncio
 import random
+import logging
 
 from urllib.parse import parse_qs, urlparse
 import urllib.request
@@ -11,8 +12,6 @@ from discord.ext import commands
 from discord.utils import get
 
 from ffrrace import Race, RaceNotLockable
-import logging
-
 import constants
 
 active_races = dict()
@@ -23,7 +22,8 @@ allow_races_bool = True
 
 def allow_seed_rolling(ctx):
     return (ctx.channel.name in constants.call_for_races_channels) or (
-        ctx.channel.id in active_races.keys())
+        ctx.channel.id in active_races.keys()
+    )
 
 
 def is_call_for_races(ctx):
@@ -79,7 +79,8 @@ def allow_races(ctx):
 def is_admin(ctx):
     user = ctx.author
     return (any(role.name in constants.ADMINS for role in user.roles)) or (
-        user.id == int(140605120579764226))
+        user.id == int(140605120579764226)
+    )
 
 
 class Races(commands.Cog):
@@ -91,26 +92,26 @@ class Races(commands.Cog):
         self.loaddata()
 
     def loaddata(self):
-        temp_twitchids = dict(self.redis_db.hgetall('twitchids'))
+        temp_twitchids = dict(self.redis_db.hgetall("twitchids"))
         for k, v in temp_twitchids.items():
-            self.twitchids[k.decode('utf-8')] = v.decode('utf-8')
-        logging.info('Loading saved Twitch ids')
-        logging.debug('twitch ids:' + str(self.twitchids))
+            self.twitchids[k.decode("utf-8")] = v.decode("utf-8")
+        logging.info("Loading saved Twitch ids")
+        logging.debug("twitch ids:" + str(self.twitchids))
 
-    @commands.command(aliases=['sr'])
+    @commands.command(aliases=["sr"])
     @commands.check(is_call_for_races)
     @commands.check(allow_races)
     async def startrace(self, ctx, *, name=None):
         if name is None:
             await ctx.author.send("you forgot to name your race")
             return
-        message_str = "A new race has been started!\nJoin this race with the" \
+        message_str = (
+            "A new race has been started!\nJoin this race with the"
             + " ?join command, @ any people that will be on your team if playing coop."
+        )
 
         racethread = await ctx.channel.create_thread(
-            name=name,
-            message=ctx.message,
-            reason="bot generated thread for a race"
+            name=name, message=ctx.message, reason="bot generated thread for a race"
         )
         race = Race(racethread.id, name)
         active_races[racethread.id] = race
@@ -124,7 +125,7 @@ class Races(commands.Cog):
         await race.message.pin()
         await asyncio.sleep(5)
 
-    @commands.command(aliases=['ap', 'multiworld', 'archipelago'])
+    @commands.command(aliases=["ap", "multiworld", "archipelago"])
     @commands.check(is_call_for_multiworld)
     @commands.check(allow_races)
     async def startmultiworld(self, ctx, *, name=None):
@@ -135,7 +136,7 @@ class Races(commands.Cog):
         racethread = await ctx.channel.create_thread(
             name=name,
             message=ctx.message,
-            reason="bot generated thread for a multiworld,"
+            reason="bot generated thread for a multiworld,",
         )
 
         race = Race(racethread.id, name, lockable=True)
@@ -150,12 +151,12 @@ class Races(commands.Cog):
         teamslist[racethread.id] = dict()
         race.owner = ctx.author.id
 
-    @commands.command(aliases=['cr'])
+    @commands.command(aliases=["cr"])
     @is_race_started(toggle=False)
     @commands.check(is_race_owner)
     @commands.check(is_race_room)
     async def closerace(self, ctx):
-        await ctx.channel.send('deleting this race in 5 minutes')
+        await ctx.channel.send("deleting this race in 5 minutes")
         await self.removeraceroom(ctx, 300)
 
     @commands.command()
@@ -166,13 +167,11 @@ class Races(commands.Cog):
         try:
             race = active_races[ctx.channel.id]
             race.lockRace()
-            edited_message = (
-                "Race: " + race.name + " is now locked! "
-            )
+            edited_message = "Race: " + race.name + " is now locked! "
             await race.message.edit(content=edited_message)
-            await ctx.channel.send('Race is now locked. New players cannot be added.')
+            await ctx.channel.send("Race is now locked. New players cannot be added.")
         except RaceNotLockable:
-            await ctx.channel.send('This race cannot be locked')
+            await ctx.channel.send("This race cannot be locked")
 
     @commands.command()
     @is_race_started(toggle=False)
@@ -180,16 +179,18 @@ class Races(commands.Cog):
     @commands.check(is_race_room)
     async def unlockrace(self, ctx):
         race = active_races[ctx.channel.id]
-        if (race.islocked):
+        if race.islocked:
             race.unlockRace()
             edited_message = (
                 "join this multiworld/race with the ?join command, @ any"
                 + " people that will be on your team if playing coop. "
             )
             await race.message.edit(content=edited_message)
-            await ctx.channel.send('This race is now unlocked. New players can join again.')
+            await ctx.channel.send(
+                "This race is now unlocked. New players can join again."
+            )
         else:
-            await ctx.channel.send('Race is already unlocked.')
+            await ctx.channel.send("Race is already unlocked.")
 
     @commands.command(aliases=["enter"])
     async def join(self, ctx, name=None):
@@ -224,8 +225,8 @@ class Races(commands.Cog):
         race.addRunner(ctx.author.id, name)
         aliases[id][ctx.author.id] = ctx.author.id
         teamslist[id][ctx.author.id] = dict(
-            [("name", name), ("members", [[ctx.author.display_name,
-                                           ctx.author.id]])])
+            [("name", name), ("members", [[ctx.author.display_name, ctx.author.id]])]
+        )
         tagpeople = "Welcome! " + ctx.author.mention
         for r in ctx.message.mentions:
             aliases[id][r.id] = ctx.author.id
@@ -233,7 +234,7 @@ class Races(commands.Cog):
             tagpeople += r.mention + " "
         await race.channel.send(tagpeople)
 
-    @commands.command(aliases=['quit'])
+    @commands.command(aliases=["quit"])
     @is_race_started(toggle=False)
     @is_runner()
     @commands.check(is_race_room)
@@ -247,9 +248,11 @@ class Races(commands.Cog):
         if race.runners[ctx.author.id]["ready"] is True:
             race.readycount -= 1
         race.removeRunner(ctx.author.id)
-        await ctx.channel.send(ctx.author.display_name
-                               + " has left the race and is now cheering "
-                               + "from the sidelines.")
+        await ctx.channel.send(
+            ctx.author.display_name
+            + " has left the race and is now cheering "
+            + "from the sidelines."
+        )
         del aliases[ctx.channel.id][ctx.author.id]
 
         try:
@@ -258,16 +261,14 @@ class Races(commands.Cog):
             pass
         try:
             for team in teamslist[ctx.channel.id].values():
-                if ([ctx.author.display_name, ctx.author.id] in
-                        team["members"]):
-                    team["members"].remove(
-                        [ctx.author.display_name, ctx.author.id])
+                if [ctx.author.display_name, ctx.author.id] in team["members"]:
+                    team["members"].remove([ctx.author.display_name, ctx.author.id])
                     break
         except KeyError:
             pass
         await self.startcountdown(ctx)
 
-    @commands.command(aliases=['s'])
+    @commands.command(aliases=["s"])
     @commands.check(is_call_for_races)
     async def spectate(self, ctx, id):
         try:
@@ -276,10 +277,11 @@ class Races(commands.Cog):
             return
         await ctx.message.delete()
         if id:
-            await race.channel.send("%s is now cheering you on from the"
-                                    + " sidelines" % ctx.author.mention)
+            await race.channel.send(
+                "%s is now cheering you on from the" + " sidelines" % ctx.author.mention
+            )
 
-    @commands.command(aliases=['r'])
+    @commands.command(aliases=["r"])
     @is_race_started(toggle=False)
     @is_runner()
     @commands.check(is_race_room)
@@ -291,13 +293,14 @@ class Races(commands.Cog):
                 ctx.author.display_name
                 + " is READY! "
                 + str(len(race.runners) - race.readycount)
-                + " remaining.")
+                + " remaining."
+            )
         except KeyError:
             ctx.channel.send("Key Error in 'ready' command")
             return
         await self.startcountdown(ctx)
 
-    @commands.command(aliases=['ur'])
+    @commands.command(aliases=["ur"])
     @is_race_started(toggle=False)
     @is_runner()
     @commands.check(is_race_room)
@@ -306,13 +309,16 @@ class Races(commands.Cog):
             race = active_races[ctx.channel.id]
             race.unready(ctx.author.id)
             await ctx.channel.send(
-                ctx.author.display_name + " is no longer READY. " + str(
-                    len(race.runners) - race.readycount) + " remaining.")
+                ctx.author.display_name
+                + " is no longer READY. "
+                + str(len(race.runners) - race.readycount)
+                + " remaining."
+            )
         except KeyError:
             ctx.channel.send("Key Error in 'ready' command")
             return
 
-    @commands.command(aliases=['e'])
+    @commands.command(aliases=["e"])
     @commands.check(is_race_room)
     async def entrants(self, ctx):
         try:
@@ -332,13 +338,13 @@ class Races(commands.Cog):
             race = active_races[ctx.channel.id]
             msg = race.done(aliases[race.id][ctx.author.id])
             thread_msg = await ctx.channel.send(msg)
-            if (race.isFinished()):
+            if race.isFinished():
                 await thread_msg.pin()  # pin the race results message
                 await self.endrace(ctx, msg)
         except KeyError:
             await ctx.channel.send("Key Error in 'done' command")
 
-    @commands.command(aliases=['unforfeit'])
+    @commands.command(aliases=["unforfeit"])
     @is_race_started()
     @is_runner()
     @commands.check(is_race_room)
@@ -359,13 +365,13 @@ class Races(commands.Cog):
             race = active_races[ctx.channel.id]
             msg = race.forfeit(aliases[race.id][ctx.author.id])
             thread_msg = await ctx.channel.send(msg)
-            if (race.isFinished()):
+            if race.isFinished():
                 await thread_msg.pin()  # pin the race results message
                 await self.endrace(ctx, msg)
         except KeyError:
             await ctx.channel.send("Key Error in the 'forfeit' command")
 
-    @commands.command(aliases=['t'])
+    @commands.command(aliases=["t"])
     @commands.check(is_race_room)
     @is_race_started(toggle=True)
     async def time(self, ctx):
@@ -375,7 +381,7 @@ class Races(commands.Cog):
         except KeyError:
             await ctx.channel.send("Key Error in the 'time' command")
 
-    @commands.command(aliases=['tl'])
+    @commands.command(aliases=["tl"])
     @is_race_started(toggle=False)
     @commands.check(is_race_room)
     async def teamlist(self, ctx):
@@ -392,7 +398,7 @@ class Races(commands.Cog):
         except KeyError:
             await ctx.channel.send("Key Error in 'teams' command")
 
-    @commands.command(aliases=['ta'])
+    @commands.command(aliases=["ta"])
     @is_race_started(toggle=False)
     @commands.check(is_team_leader)
     @commands.check(is_race_room)
@@ -402,11 +408,12 @@ class Races(commands.Cog):
             for player in ctx.message.mentions:
                 aliases[race.id][player.id] = ctx.author.id
                 teamslist[race.id][ctx.author.id]["members"].append(
-                    [player.display_name, player.id])
+                    [player.display_name, player.id]
+                )
         except KeyError:
             await ctx.channel.send("Key Error in 'teamadd' command")
 
-    @commands.command(aliases=['tr'])
+    @commands.command(aliases=["tr"])
     @is_race_started(toggle=False)
     @commands.check(is_team_leader)
     @commands.check(is_race_room)
@@ -416,7 +423,8 @@ class Races(commands.Cog):
             for player in ctx.message.mentions:
                 del aliases[race.id][player.id]
                 teamslist[race.id][ctx.author.id]["members"].remove(
-                    [player.display_name, player.id])
+                    [player.display_name, player.id]
+                )
         except KeyError:
             await ctx.channel.send("Key Error in 'teamremove' command")
 
@@ -435,10 +443,12 @@ class Races(commands.Cog):
     async def startcountdown(self, ctx):
         race = active_races[ctx.channel.id]
         multi = await self.multistream(race, all=True, discord=True, ctx=ctx)
-        if (race.readycount != len(race.runners)):
+        if race.readycount != len(race.runners):
             return
         edited_message = (
-            "Race: " + race.name + " has started! "
+            "Race: "
+            + race.name
+            + " has started! "
             + "\nWatch the race at: "
             + (race.restream if race.restream is not None else multi)
         )
@@ -455,8 +465,7 @@ class Races(commands.Cog):
         try:
             race = active_races[ctx.channel.id]
         except KeyError:
-            ctx.channel.send(
-                "this isnt a race channel, cant set restream here")
+            ctx.channel.send("this isnt a race channel, cant set restream here")
             return
         race.restream = streamid
         await ctx.channel.send("restream set to: " + race.restream)
@@ -503,12 +512,7 @@ class Races(commands.Cog):
         seed = random.randint(0, 4294967295)
         url = "<https://" + site
 
-        url += (
-            "/Randomize?s="
-            + ("{0:-0{1}x}".format(seed, 8))
-            + "&f="
-            + flags
-        )
+        url += "/Randomize?s=" + ("{0:-0{1}x}".format(seed, 8)) + "&f=" + flags
 
         url += ">"
         return url
@@ -516,21 +520,23 @@ class Races(commands.Cog):
     @commands.command()
     @commands.check(allow_seed_rolling)
     async def ff1seed(self, ctx):
-        await ctx.channel.send("{0:-0{1}x}"
-                               .format(random.randint(0, 4294967295), 8))
+        await ctx.channel.send("{0:-0{1}x}".format(random.randint(0, 4294967295), 8))
 
     @commands.command()
     async def multireadied(self, ctx, raceid: str = None):
         user = ctx.message.author
 
         if raceid is None:
-            await user.send("You need to supply the "
-                            + "race id to get the multistream link.")
+            await user.send(
+                "You need to supply the " + "race id to get the multistream link."
+            )
             return
         link = await self.multistream(raceid)
         if link is None:
-            await ctx.channel.send('There is no race with that 5 character '
-                                   + 'id, try remove "srl-" from the room id.')
+            await ctx.channel.send(
+                "There is no race with that 5 character "
+                + 'id, try remove "srl-" from the room id.'
+            )
         else:
             await ctx.channel.send(link)
 
@@ -542,24 +548,24 @@ class Races(commands.Cog):
                 race = active_races[ctx.channel.id]
             else:
                 race = active_races[int(raceid)]
-            link = await self.multistream(race, all=True, discord=True,
-                                          ctx=ctx)
+            link = await self.multistream(race, all=True, discord=True, ctx=ctx)
             await ctx.channel.send(link)
 
         except (KeyError, ValueError):
             if raceid is None:
-                await user.send("You need to supply the race " +
-                                "id to get the multistream link.")
+                await user.send(
+                    "You need to supply the race " + "id to get the multistream link."
+                )
                 return
             link = await self.multistream(raceid, all=True, discord=False)
             if link is None:
-                await ctx.channel.send("There is no race with"
-                                       + " that 5 character id")
+                await ctx.channel.send("There is no race with" + " that 5 character id")
             else:
                 await ctx.channel.send(link)
 
-    async def multistream(self, race, all: bool = False,
-                          discord: bool = False, ctx=None):
+    async def multistream(
+        self, race, all: bool = False, discord: bool = False, ctx=None
+    ):
         srl_tmp = r"http://api.speedrunslive.com/races/{}"
         ms_tmp = r"http://multistre.am/{}/"
         if discord:
@@ -568,14 +574,17 @@ class Races(commands.Cog):
             for team in teamslist[race.id].values():
                 for runner in team["members"]:
                     try:
-                        if (self.twitchids[str(runner[1])] != ''):
+                        if self.twitchids[str(runner[1])] != "":
                             runners.append(self.twitchids[str(runner[1])])
                     except KeyError:
                         no_twitch_id.append(runner[0])
-            ms_tmp = ms_tmp.format(r'/'.join(runners))
+            ms_tmp = ms_tmp.format(r"/".join(runners))
             if len(no_twitch_id) != 0:
-                ms_tmp += "\nRunners without a set"\
-                          + " twitch Id: \n" + ", ".join(no_twitch_id)
+                ms_tmp += (
+                    "\nRunners without a set"
+                    + " twitch Id: \n"
+                    + ", ".join(no_twitch_id)
+                )
             return ms_tmp
         race = race.strip()[-5:]
         srlurl = srl_tmp.format(race)
@@ -588,37 +597,41 @@ class Races(commands.Cog):
         srl_json = json.load(srlio)
         try:
             entrants = [
-                srl_json['entrants'][k]['twitch']
-                for k in srl_json['entrants'].keys() if (
-                    srl_json[
-                        'entrants'][
-                        k][
-                        'statetext'] == "Ready") or all]
+                srl_json["entrants"][k]["twitch"]
+                for k in srl_json["entrants"].keys()
+                if (srl_json["entrants"][k]["statetext"] == "Ready") or all
+            ]
         except KeyError:
             return None
-        entrants_2 = r'/'.join(entrants)
+        entrants_2 = r"/".join(entrants)
         ret = ms_tmp.format(entrants_2)
         return ret
 
     @commands.command()
-    async def twitchid(self, ctx, id=''):
+    async def twitchid(self, ctx, id=""):
         self.twitchids[str(ctx.author.id)] = id
-        self.redis_db.hset('twitchids', str(
-            ctx.author.id).encode('utf-8'), id.encode('utf-8'))
-        await ctx.channel.send('twitch id set to: '
-                               + self.twitchids[str(ctx.author.id)])
+        self.redis_db.hset(
+            "twitchids", str(ctx.author.id).encode("utf-8"), id.encode("utf-8")
+        )
+        await ctx.channel.send(
+            "twitch id set to: " + self.twitchids[str(ctx.author.id)]
+        )
 
     @commands.command()
     async def stream(self, ctx):
         for player in ctx.message.mentions:
             try:
-                await ctx.channel.send(r'https://www.twitch.tv/{}'
-                                       .format(self.twitchids[str(player.id)]))
+                await ctx.channel.send(
+                    r"https://www.twitch.tv/{}".format(self.twitchids[str(player.id)])
+                )
             except KeyError:
-                await ctx.channel.send(player.mention + " has not set their"
-                                       + " twitchid\nset it with the following"
-                                       + " command:\n`?twitchid "
-                                       + "your_twitch_username`")
+                await ctx.channel.send(
+                    player.mention
+                    + " has not set their"
+                    + " twitchid\nset it with the following"
+                    + " command:\n`?twitchid "
+                    + "your_twitch_username`"
+                )
 
     # Admin Commands
 
@@ -668,8 +681,7 @@ class Races(commands.Cog):
             try:
                 for team in teamslist[ctx.channel.id].values():
                     if any(player.id in x for x in team["members"]):
-                        team["members"].remove(
-                            [player.display_name, player.id])
+                        team["members"].remove([player.display_name, player.id])
                         break
             except KeyError:
                 pass
@@ -679,6 +691,6 @@ class Races(commands.Cog):
     async def toggleraces(self, ctx):
         global allow_races_bool
         allow_races_bool = not allow_races_bool
-        await ctx.channel.send("races "
-                               + ("enabled" if allow_races_bool
-                                  else "disabled"))
+        await ctx.channel.send(
+            "races " + ("enabled" if allow_races_bool else "disabled")
+        )
