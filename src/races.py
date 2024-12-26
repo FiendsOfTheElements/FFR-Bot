@@ -96,7 +96,7 @@ class Races(commands.Cog):
         for k, v in temp_twitchids.items():
             self.twitchids[k.decode("utf-8")] = v.decode("utf-8")
         logging.info("Loading saved Twitch ids")
-        logging.debug("twitch ids:" + str(self.twitchids))
+        logging.debug("twitch ids: %s", str(self.twitchids))
 
     @commands.command(aliases=["sr"])
     @commands.check(is_call_for_races)
@@ -247,6 +247,17 @@ class Races(commands.Cog):
 
         if race.runners[ctx.author.id]["ready"] is True:
             race.readycount -= 1
+
+        if race.started:
+            # quiting a started race is akin to forfeit
+            await self.forfeit(ctx)
+            await ctx.channel.send(
+                ctx.author.display_name
+                + " has left the race and is now cheering "
+                + "from the sidelines."
+            )
+            return
+
         race.removeRunner(ctx.author.id)
         await ctx.channel.send(
             ctx.author.display_name
@@ -278,7 +289,7 @@ class Races(commands.Cog):
         await ctx.message.delete()
         if id:
             await race.channel.send(
-                "%s is now cheering you on from the" + " sidelines" % ctx.author.mention
+                f"{ctx.author.mention} is now cheering you on from the sidelines"
             )
 
     @commands.command(aliases=["r"])
