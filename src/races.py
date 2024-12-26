@@ -235,7 +235,6 @@ class Races(commands.Cog):
         await race.channel.send(tagpeople)
 
     @commands.command(aliases=["quit"])
-    @is_race_started(toggle=False)
     @is_runner()
     @commands.check(is_race_room)
     async def unjoin(self, ctx):
