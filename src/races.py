@@ -657,7 +657,7 @@ class Races(commands.Cog):
         for runner in race.runners.keys():
             if race.runners[runner]["etime"] is None:
                 race.forfeit(runner)
-        results = race.finishRace()
+        results = race.getFinishedRaceMessage()
         await self.endrace(ctx, results)
 
     @commands.command()
