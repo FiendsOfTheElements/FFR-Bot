@@ -156,8 +156,8 @@ class Races(commands.Cog):
     @commands.check(is_race_owner)
     @commands.check(is_race_room)
     async def closerace(self, ctx):
-        await ctx.channel.send("deleting this race in 5 minutes")
-        await self.removeraceroom(ctx, 300)
+        await ctx.channel.send("locking and archiving this race")
+        await self.lockracethread(ctx)
 
     @commands.command()
     @is_race_started(toggle=False)
@@ -497,6 +497,10 @@ class Races(commands.Cog):
         del aliases[channel.id]
         del teamslist[channel.id]
 
+    async def lockracethread(self, ctx):
+        await ctx.channel.edit(locked=True, archived=True)
+        await self.removerace(ctx)
+
     @commands.command(
         aliases=["ff1url", "ff1roll", "ffrroll", "rollseedurl", "roll_ffr_url_seed"]
     )
@@ -653,10 +657,10 @@ class Races(commands.Cog):
         await self.startcountdown(ctx)
 
     @commands.command()
-    @commands.check(is_admin)
+#    @commands.check(is_admin)
     @commands.check(is_race_room)
     async def forceclose(self, ctx):
-        await self.removeraceroom(ctx)
+        await self.lockracethread(ctx)
 
     @commands.command()
     @commands.check(is_admin)
