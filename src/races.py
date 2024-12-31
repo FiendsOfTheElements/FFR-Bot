@@ -657,7 +657,7 @@ class Races(commands.Cog):
         await self.startcountdown(ctx)
 
     @commands.command()
-#    @commands.check(is_admin)
+    @commands.check(is_admin)
     @commands.check(is_race_room)
     async def forceclose(self, ctx):
         await self.lockracethread(ctx)
