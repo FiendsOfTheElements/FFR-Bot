@@ -63,8 +63,8 @@ class Roles(commands.Cog):
                                  zip(constants
                                      .self_assignable_roles,
                                      constants.
-                                     self_assignable_roles_descriptions)])
-                  + '\n\n\nCommands:\n\n use ?addrole'
+                                     self_assignable_roles_descriptions)]))
+        await ctx.author.send('\n\nCommands:\n\n use ?addrole'
                   + ' "rolename" in role-requests'
                   + " to add yourself to a role, or you can"
                   + '\n\n use ?removerole "rolename" to remove it.')
