@@ -38,7 +38,8 @@ self_assignable_roles =\
      "No Pronoun",
      "IronGoler",
      "co-op flag tester",
-     "AP Ping Me To Play"
+     "AP Ping Me To Play",
+     "Monthly Async Player"
     ]
 self_assignable_roles_descriptions =\
     ["Optional new player role. Allows you to"
@@ -97,7 +98,10 @@ self_assignable_roles_descriptions =\
      + " for co-op races",
      "An optional role"
      + " for people to ping if they want to"
-     + " play multiworld using Archipelago"]
+     + " play multiworld using Archipelago",
+     "An optional role"
+     + " for people who play in the monthly"
+     + " async AP race"]
 
 role_requests = "role-requests"
 polls_category = "Administration"
