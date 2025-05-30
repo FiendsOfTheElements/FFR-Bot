@@ -64,7 +64,7 @@ class OpenReportModal(discord.ui.Modal, title="Open Report"):
             await thread.add_user(member)
 
         await thread.send(
-            f"{interaction.user.mention} has opened an report.\n\n**Description:** {self.description.value}",
+            f"{interaction.user.mention} has opened an report.\n\n**Description:** {self.description.value}\n**Channel:** {interaction.channel.mention}",
             allowed_mentions=discord.AllowedMentions.none(),
         )
 
