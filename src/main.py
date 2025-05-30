@@ -55,12 +55,9 @@ redis_polls = redis.StrictRedis(connection_pool=redis_pool)
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    logging.info("Commands synced globally.")
     for guild in bot.guilds:
-        logging.info("Syncing commands for guild: %s (ID: %s)", guild.name, guild.id)
         cmds = bot.tree.get_commands(guild=guild)
         if cmds:
-            logging.info("Loaded %d commands for %s", len(cmds), guild.name)
             await bot.tree.sync(guild=guild)
 
     logging.info("discord.py version: %s", discord.__version__)
