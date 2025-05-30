@@ -20,6 +20,7 @@ import discord
 from races import Races
 from roles import Roles
 from voting.polls import Polls
+from cogs.report import Report
 
 import constants
 
@@ -53,7 +54,13 @@ redis_polls = redis.StrictRedis(connection_pool=redis_pool)
 
 @bot.event
 async def on_ready():
-    logging.info("discord.py version: " + discord.__version__)
+    await bot.tree.sync()
+    for guild in bot.guilds:
+        cmds = bot.tree.get_commands(guild=guild)
+        if cmds:
+            await bot.tree.sync(guild=guild)
+
+    logging.info("discord.py version: %s", discord.__version__)
     logging.info("Logged in as")
     logging.info(bot.user.name)
     logging.info(bot.user.id)
@@ -599,7 +606,7 @@ async def main(client, token):
     await bot.add_cog(Races(bot, redis_races))
     await bot.add_cog(Roles(bot))
     await bot.add_cog(Polls(bot, redis_polls))
-
+    await bot.add_cog(Report(bot))
     async with client:
         await client.start(token)
 
