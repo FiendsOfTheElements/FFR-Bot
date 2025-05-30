@@ -65,22 +65,6 @@ class Report(commands.Cog):
         """
         Adds a message that allows users to create a private thread to open an report.
         """
-        if not interaction.channel.permissions_for(interaction.guild.me).create_private_threads:
-            await interaction.response.send_message(
-                "This bot needs permission to create private threads in this channel.", ephemeral=True)
-            return
-
-        if interaction.channel.permissions_for(interaction.guild.default_role).send_messages:
-            await interaction.response.send_message(
-                "`@everyone` should not be allowed to send messages in this channel.", ephemeral=True)
-            return
-
-        if not interaction.channel.permissions_for(interaction.guild.default_role).send_messages_in_threads:
-            await interaction.response.send_message(
-                    "`@everyone` needs to be able to send messages in threads.", ephemeral=True
-                )
-            return
-
         mod_role = discord.utils.get(interaction.guild.roles, name=constants.mod_role)
         admin_role = discord.utils.get(interaction.guild.roles, name=constants.admin_role)
         if not mod_role or not admin_role:
