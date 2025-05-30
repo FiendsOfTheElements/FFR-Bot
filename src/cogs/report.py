@@ -65,11 +65,6 @@ class Report(commands.Cog):
         """
         Adds a message that allows users to create a private thread to open an report.
         """
-        if not interaction.channel.permissions_for(interaction.user).manage_threads:
-            await interaction.response.send_message("You must have manage threads permission to use this feature.",
-                                                    ephemeral=True)
-            return
-
         if not interaction.channel.permissions_for(interaction.guild.me).create_private_threads:
             await interaction.response.send_message(
                 "This bot needs permission to create private threads in this channel.", ephemeral=True)
