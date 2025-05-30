@@ -1,6 +1,7 @@
 ADMINS = ["admin", "dev admin", "arbiter"]
 mod_role = "moderator"
 admin_role = "admin"
+arbitor_role = "arbiter"
 Sleep_Time = 5000
 ducklingchannel = 'duckling-weekly'
 ducklingleaderboard = 'duckling-leaderboard'

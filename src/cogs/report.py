@@ -7,6 +7,7 @@ from discord.interactions import Interaction
 
 import constants
 
+
 class OpenReportThread(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=60)
@@ -14,6 +15,7 @@ class OpenReportThread(discord.ui.View):
     @discord.ui.button(label="Yes", style=discord.ButtonStyle.red, row=2)
     async def yes(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(OpenReportModal())
+
 
 class OpenReportModal(discord.ui.Modal, title="Open Report"):
     description = discord.ui.TextInput(
@@ -33,13 +35,24 @@ class OpenReportModal(discord.ui.Modal, title="Open Report"):
 
         msg = None
         thread: discord.Thread = await interaction.channel.create_thread(
-            name=f"Report {interaction.user.name} {random.randint(0, 999)}", message=msg,
-            auto_archive_duration=duration)
+            name=f"Report by {interaction.user.name} - {random.randint(0, 999)}",
+            message=msg,
+            auto_archive_duration=duration,
+        )
 
-        pinged_members = discord.utils.get(interaction.guild.roles, name=constants.mod_role).members + discord.utils.get(interaction.guild.roles, name=constants.admin_role).members
+        pinged_members = self._get_moderator_members(interaction)
+        if not pinged_members:
+            await interaction.response.send_message(
+                "No moderators found to ping. Please ensure there are members with the moderator role in the server.",
+                ephemeral=True,
+            )
+            raise ValueError("No moderators found to ping for report.")
+
         await thread.add_user(interaction.user)
         await interaction.response.send_message(
-            f"A new thread called {thread.mention} has been opened for this report.", ephemeral=True)
+            f"A new thread called {thread.mention} has been opened for this report.",
+            ephemeral=True,
+        )
 
         if interaction.guild.chunked is False:
             await interaction.guild.chunk(cache=True)
@@ -49,36 +62,51 @@ class OpenReportModal(discord.ui.Modal, title="Open Report"):
 
         await thread.send(
             f"{interaction.user.mention} has opened an report.\n\n**Description:** {self.description.value}",
-            allowed_mentions=discord.AllowedMentions.none()
+            allowed_mentions=discord.AllowedMentions.none(),
         )
+
+    def _get_moderator_members(self, interaction: Interaction):
+        mod_members = discord.utils.get(
+            interaction.guild.roles, name=constants.mod_role
+        ).members
+        arbiter = discord.utils.get(
+            interaction.guild.roles, name=constants.arbitor_role
+        )
+        if not arbiter:
+            return mod_members
+
+        return [member for member in mod_members if arbiter not in member.roles]
+
 
 class Report(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.persistent_views_added = False
 
-    @app_commands.command(description="Adds a message that allows users to create a private thread to open an report.")
+    @app_commands.command(
+        description="Adds a message that allows users to create a private thread to open an report."
+    )
     async def report(
-            self,
-            interaction: discord.Interaction,
+        self,
+        interaction: discord.Interaction,
     ):
         """
         Adds a message that allows users to create a private thread to open an report.
         """
         mod_role = discord.utils.get(interaction.guild.roles, name=constants.mod_role)
-        admin_role = discord.utils.get(interaction.guild.roles, name=constants.admin_role)
-        if not mod_role or not admin_role:
+        if not mod_role:
             await interaction.response.send_message(
-                "The server must have a mod and admin role for this feature to work.", ephemeral=True)
+                "The server must have a mod role for this feature to work.",
+                ephemeral=True,
+            )
             return
-        
+
         await interaction.response.send_message(
             content=(
-                f"This will open a private thread to {mod_role.mention} and {admin_role.mention}, are you sure you want to do that?\n\n"
-                "This message will stop working after one minute.\n"
-                "If you did not intend to do this, simply click \"Dismiss message\" at the bottom of this response. Thanks!"
+                f"Thank you for reporting. This interaction will open a private thread with the {mod_role.mention} and admin team where you can elaborate on the issue.\n\n"
+                'Click "Yes" to start the report. If you did not intend to do this, simply click "Dismiss message" at the bottom of this response. Thanks!'
             ),
             ephemeral=True,
             view=OpenReportThread(),
-            allowed_mentions=discord.AllowedMentions(roles=False)
+            allowed_mentions=discord.AllowedMentions(roles=False),
         )
