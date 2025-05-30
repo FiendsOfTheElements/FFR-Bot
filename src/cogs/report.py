@@ -34,7 +34,10 @@ class OpenReportModal(discord.ui.Modal, title="Open Report"):
         duration = 24 * 60
 
         msg = None
-        thread: discord.Thread = await interaction.channel.create_thread(
+        channel = self._get_moderation_channel(interaction)
+        if not channel:
+            channel = interaction.channel
+        thread: discord.Thread = await channel.create_thread(
             name=f"Report by {interaction.user.name} - {random.randint(0, 999)}",
             message=msg,
             auto_archive_duration=duration,
@@ -75,8 +78,19 @@ class OpenReportModal(discord.ui.Modal, title="Open Report"):
         if not arbiter:
             return mod_members
 
-        return [member for member in mod_members if arbiter not in member.roles]
+        return [member for member in mod_members if arbiter not in member.roles and member.name not in constants.do_not_ping]
 
+    def _get_moderation_channel(self, interaction: Interaction):
+        """
+        Returns the channel where reports should be sent.
+        If no specific channel is set, it returns the current channel.
+        """
+        mod_channel = discord.utils.get(
+            interaction.guild.channels, name=constants.moderation_channel
+        )
+        if mod_channel:
+            return mod_channel
+        return None
 
 class Report(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
