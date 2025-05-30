@@ -3,6 +3,7 @@ mod_role = "moderator"
 admin_role = "admin"
 arbitor_role = "arbiter"
 Sleep_Time = 5000
+moderation_channel = "moderation"
 ducklingchannel = 'duckling-weekly'
 ducklingleaderboard = 'duckling-leaderboard'
 ducklingspoiler = 'duckling-spoilers'
@@ -106,6 +107,7 @@ self_assignable_roles_descriptions =\
      + " for people who play in the monthly"
      + " async AP race"]
 
+do_not_ping = ["haatexiii"]
 role_requests = "role-requests"
 polls_category = "Administration"
 voting_age_days = 14
