@@ -1,12 +1,6 @@
 import time
 from datetime import timedelta
 from sys import maxsize
-import os
-import redis
-
-redis_db = redis.Redis(host=os.environ.get("REDIS_HOST", "localhost"),
-                       port=int(os.environ.get("REDIS_PORT", "6379")))
-
 
 class Race:
     """
@@ -27,10 +21,6 @@ class Race:
         self.restream = None
         self.lockable = lockable
         self.islocked = False
-
-    # def savedata(self):
-    #     redis_db.hmset('active_races', json.dumps(active_races))
-    #
 
     def addRunner(self, runnerid, runner):
         if not self.islocked:
