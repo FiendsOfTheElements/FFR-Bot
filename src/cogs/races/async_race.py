@@ -19,9 +19,9 @@ class AsyncRace:
         name,
         owner,
         flags: str,
-        start_time: datetime = None,
-        end_time: datetime = None,
-        race_role: str = None,
+        start_time = None,
+        end_time = None,
+        race_role = None,
     ):
         self.race_channel = race_channel
         self.race_id = None
