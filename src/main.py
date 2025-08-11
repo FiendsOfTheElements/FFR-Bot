@@ -13,6 +13,7 @@ import discord
 from cogs.misc import MiscCommandCog
 from cogs.races.races import Races
 from cogs.races.async_races import AsyncRaces
+from cogs.races.races_common import RacesCommon
 from cogs.roles import Roles
 from voting.polls import Polls
 from cogs.report import Report

@@ -25,8 +25,8 @@ class AsyncRaces(commands.Cog):
         self.active_races = dict()
         # self.loaddata()
 
-    def get_race(self, ctx):
-        return self.active_races.get(ctx.channel.id)
+    def get_race(self, channel_id):
+        return self.active_races.get(channel_id)
 
     def remove_race(self, race):
         del self.active_races[race.race_id]
@@ -347,7 +347,7 @@ class AsyncRaces(commands.Cog):
 
     @commands.command()
     async def endasync(self, ctx):
-        race = self.get_race(ctx)
+        race = self.get_race(ctx.channel.id)
         if not race:
             await ctx.author.send(
                 "The ?endrace command must be used in an active async race thread"
@@ -364,7 +364,7 @@ class AsyncRaces(commands.Cog):
         on_message listener
         This is used to detect and delete any non-command message by a user from an active race.
         """
-        if message.author.id == self.bot.id:
+        if message.author.id == self.bot.user.id:
             # allow bot messages
             return
 
@@ -458,6 +458,7 @@ class AsyncRaces(commands.Cog):
         else:
             await ctx.message.delete()
 
+
     async def spec(self, ctx):
         """
         Gives the user the appropriate role
@@ -469,6 +470,7 @@ class AsyncRaces(commands.Cog):
         if role is not None and role.name in constants.nonadminroles:
             await user.add_roles(role)
         await ctx.message.delete()
+
 
     async def getrole(self, ctx):
         """
@@ -508,6 +510,7 @@ class AsyncRaces(commands.Cog):
 
         return role
 
+
     async def getleaderboard(self, ctx):
         """
         Returns the leaderboard Message object depending on the channel the
@@ -545,6 +548,7 @@ class AsyncRaces(commands.Cog):
 
         return leaderboard
 
+
     async def getspoilerchat(self, ctx):
         """
         Returns the spoiler Channel object depending on the channel the command
@@ -572,6 +576,7 @@ class AsyncRaces(commands.Cog):
 
         return spoilerchat
 
+
     async def changeparticipants(self, ctx, increment=True, channel=None):
         """
         changes the participant number
@@ -594,6 +599,7 @@ class AsyncRaces(commands.Cog):
             num_partcipents -= 1
         new_participants = "Number of participants: " + str(num_partcipents)
         await participants.edit(content=new_participants)
+
 
     async def periodic_race_update(self):
         """
