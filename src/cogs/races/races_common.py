@@ -13,7 +13,6 @@ def flagseedgen(url):
     seed = random.randint(0, 4294967295)
     hex_seed = "{0:-0{1}x}".format(seed, 8)
     url = f"<https://{site}/Randomize?s={hex_seed}&f={flags}>"
-    url += ">"
     return url
 
 

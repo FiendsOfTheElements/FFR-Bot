@@ -26,6 +26,7 @@ class AsyncRace:
         self.race_channel = race_channel
         self.race_id = None
         self.race_thread = None
+        self.spoiler_thread = None
         self.name = name
         self.owner = owner
         self.flags = flags
@@ -53,12 +54,19 @@ class AsyncRace:
         self.race_thread = await self.race_channel.create_thread(
             name=self.name, message=None, type=discord.ChannelType.public_thread, reason="bot generated thread for async race")
 
+        self.spoiler_thread = await self.race_channel.create_thread(
+            name=f"{self.name} - Spoilers", message=None, type=discord.ChannelType.private_thread, reason="bot generated spoiler thread for async"
+        )
+
+        await self.race_thread.add_user(self.owner)
+        await self.spoiler_thread.add_user(self.owner)
+
         self.race_id = self.race_thread.id
                 
         if self.start_time is None:
-            self.start_race()
+            await self.start_race()
         else:
-            self.announcement_message = self.race_thread.send(
+            self.announcement_message = await self.race_thread.send(
                 f"Async race {self.name} has been scheduled for <t:{self.start_time.timestamp()}:F>"
             )
 
@@ -114,30 +122,33 @@ class AsyncRace:
             )
             raise CommandError
 
-        finished_racers = [entry for entry in self.leaderboard if not entry.is_forfeit]
+        finished_racers = [entry for entry in self.leaderboard if not entry.is_forfeit and not entry.is_spectator]
         finished_racers.sort(key=lambda x: x.time_delta)
         leaderboard_str = "Final Leaderboard:\n"
         for i, entry in enumerate(finished_racers):
             leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"
 
-        forfeits = [entry for entry in self.leaderboard if entry.is_forfeit]
+        forfeits = [entry for entry in self.leaderboard if entry.is_forfeit and not entry.is_spectator]
         leaderboard_str = leaderboard_str + "\n\nForfeits:\n"
         for i, entry in enumerate(forfeits):
             leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"
 
         # Grant the race role to all participants
-        participants = [entry.runner for entry in self.leaderboard]
-        for _, participant in enumerate(participants):
-            role = get(self.race_thread.guild.roles, name=self.race_role)
-            await participant.add_roles(role)
+        # participants = [entry.runner for entry in self.leaderboard]
+        # for _, participant in enumerate(participants):
+        #    role = get(self.race_thread.guild.roles, name=self.race_role)
+        #    await participant.add_roles(role)
+
+        # post the final leaderboard
+        await self.race_channel.send(leaderboard_str)
 
         self.is_started = False
         self.is_finished = True
 
     async def submit(self, runner, runner_time, vod, is_forfeit):
         """
-        Submits a time to the async. This sends a message to the owner, but does not publish the time
-        until the race has finished.
+        Submits a time to the async. This sends a message to the owner and adds the runner to the spoiler thread, 
+        but does not publish the time until the race has finished.
         """
         # Guard conditions
         if not self.is_started or self.is_finished:
@@ -149,10 +160,17 @@ class AsyncRace:
 
         entry = AsyncLeaderboardEntry(runner, runner_time, vod, is_forfeit)
         self.leaderboard.append(entry)
+        await self.spoiler_thread.add_user(runner)
         await self.leaderboard_message.edit(
             content=f"Number of participants: {len(self.leaderboard)}"
         )
         await self.owner.send(f"Time submitted for {self.name}: {str(entry)}")
+
+    async def spectate(self, user):
+        """
+        Adds the user to the spoiler thread for this race
+        """
+        await self.spoiler_thread.add_user(user)
 
     def is_owner(self, user):
         """
@@ -166,7 +184,8 @@ class AsyncRace:
         """
         leaderboard_str = "Runner,Time,VOD\n"
         for entry in self.leaderboard:
-            leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.runner_time if not entry.is_forfeit else "DNF"},{entry.vod}\n"
+            if (not entry.is_spectator):
+                leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.runner_time if not entry.is_forfeit else "DNF"},{entry.vod}\n"
         return leaderboard_str
     
     def __eq__(self, other):
@@ -179,7 +198,7 @@ class AsyncLeaderboardEntry:
     Entry in the leaderboard for an async race
     """
 
-    def __init__(self, runner, runner_time: str, vod: str, is_forfeit=False):
+    def __init__(self, runner, runner_time: str, vod: str, is_forfeit=False, is_spectator=False):
         """
         runner_name - name of the submitter to the leaderboard
         time - runners time in HH:MM:SS format
@@ -192,18 +211,18 @@ class AsyncLeaderboardEntry:
         self.time_delta = self._get_time_delta(runner_time)
         self.vod = vod
         self.is_forfeit = is_forfeit
+        self.is_spectator = is_spectator
 
     def __str__(self):
-        # convert the time back to hours minutes and seconds for the
-        # leaderboard
         if self.is_forfeit:
             return f"{self.runner_name} - Forfeit"
 
         totsec = self.time_delta.total_seconds()
-        h = totsec // 3600
-        m = (totsec % 3600) // 60
-        s = (totsec % 3600) % 60
-
+        h = int(totsec // 3600)
+        m = int((totsec % 3600) // 60)
+        s = int((totsec % 3600) % 60)
+        # convert the time back to hours minutes and seconds for the
+        # leaderboard
         entry_str = f"{self.runner_name} - {h:%d}:{m:%02d}:{s:%02d}"
         if self.vod:
             entry_str = entry_str + f"- {self.vod}"

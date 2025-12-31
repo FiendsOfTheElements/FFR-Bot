@@ -65,11 +65,12 @@ async def on_ready():
 
 @bot.event
 async def on_command_error(ctx, error):
-    poor_soul = bot.get_user(478735647449022482)
+    poor_soul = bot.get_user(constants.poor_soul_id)
     if isinstance(error, discord.ext.commands.errors.CommandNotFound):
         raise error
-    error_msg = "".join(traceback.TracebackException.from_exception(error).format())
-    await poor_soul.send(" ".join(["Error in FFRBot!!\n", error_msg]))
+    error_msg = "".join(traceback.TracebackException.from_exception(error).format())[:1950]
+    await poor_soul.send("Error in FFRBot!!")
+    await poor_soul.send(error_msg)
     raise error
 
 # used to clear channels for testing purposes
@@ -109,7 +110,7 @@ async def main(client, token):
     races = Races(bot, redis_races)    
     async_races = AsyncRaces(bot, redis_races)
     # schedule the async update to run periodically
-    asyncio.create_task(periodic(3600, async_races.periodic_race_update))
+    asyncio.create_task(periodic(30, async_races.periodic_race_update))
 
     await bot.add_cog(RacesCommon(bot, races, async_races))
     await bot.add_cog(races)

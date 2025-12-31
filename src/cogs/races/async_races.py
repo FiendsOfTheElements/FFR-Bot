@@ -1,4 +1,7 @@
 import re
+import logging
+import pickle
+import traceback
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -11,10 +14,10 @@ from cogs.global_checks import is_admin
 
 class StartAsyncFlags(commands.FlagConverter):
     name: str
+    flags: str
     race_role: Optional[str]
     start_timestamp: Optional[int]
     end_timestamp: Optional[int]
-    flags: str
 
 
 class AsyncRaces(commands.Cog):
@@ -23,13 +26,25 @@ class AsyncRaces(commands.Cog):
         self.bot = bot
         self.redis_db = redis_db
         self.active_races = dict()
-        # self.loaddata()
+        try:
+            self._load_data()
+        except Exception as e:
+            message = "Error loading saved races, maybe use command clear_db to wipe stored data"
+            message += traceback.TracebackException.from_exception(e).format().split[:1900]
+            self._send_error(message)
+            logging.error("Error loading saved races, maybe use command clear_db to wipe stored data")
+            logging.exception(e)
 
+    def is_async_race(self, channel_id):
+        return self.active_races.get(channel_id) is not None
+    
     def get_race(self, channel_id):
         return self.active_races.get(channel_id)
 
     def remove_race(self, race):
         del self.active_races[race.race_id]
+        self._delete_one(race.race_id)
+
 
     @commands.command(aliases=["ca"])
     async def createasync(self, ctx, *, flags: StartAsyncFlags):
@@ -68,12 +83,14 @@ class AsyncRaces(commands.Cog):
 
         await race.init_race()
         self.active_races[race.race_id] = race
-        ctx.message.delete()
+        self._save_one(race.race_id)
+        await ctx.message.delete()
+
 
     @commands.command()
     async def startasync(self, ctx):
         thread_id = ctx.channel.id
-        race = self.active_races.get(thread_id)
+        race = self.get_race(thread_id)
         if race is None:
             await ctx.author.send("The ?startasync command must be used in an active async race thread")
             await ctx.message.delete()
@@ -85,24 +102,26 @@ class AsyncRaces(commands.Cog):
             return
         
         race.start_race()
+        self._save_one(race.race_id)
 
 
     @commands.command()
     async def endasync(self, ctx):
         thread_id = ctx.channel.id
-        race = self.active_races.get(thread_id)
+        race = self.get_race(thread_id)
         if race is None:
-            await ctx.author.send("The ?startasync command must be used in an active async race thread")
+            await ctx.author.send("The ?endasync command must be used in an active async race thread")
             await ctx.message.delete()
             return
         
         if ctx.author.id != race.owner.id and not is_admin(ctx.author):
-            await ctx.author.send("Only the race owner or admin can start the async race ahead of the scheduled time")
+            await ctx.author.send("Only the race owner or admin can end the async race ahead of the scheduled time")
             await ctx.message.delete()
             return
 
         race.end_race()
-
+        self.remove_race(race)
+    
 
     @commands.command()
     async def purgemembers(self, ctx):
@@ -112,6 +131,10 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: None
         """
+        if (self.is_async_race(ctx.channel.id)):
+            # purge only on leaderboard races
+            return
+
         user = ctx.message.author
         role = await self.getrole(ctx)
 
@@ -147,13 +170,14 @@ class AsyncRaces(commands.Cog):
         :return: None
         """
         # check to see if this was submitted to an active race
-        race = self.active_races.get(ctx.channel.id)
+        race = self.get_race(ctx.channel.id)
         if race is None:
             # if it is not an active race, try and submit it to the leaderboard
-            await self.submit_leaderboard(ctx, runnertime)
-            return
-        
-        await race.submit_time(ctx.author, runnertime, vod)
+            await self.submit_leaderboard(ctx, runnertime)        
+        else:
+            await race.submit(ctx.author, runnertime, vod, False)
+            self._save_one(race.race_id)
+
 
     async def submit_leaderboard(self, ctx, runnertime):
         """
@@ -162,7 +186,10 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: None
         """
-
+        if (self.is_async_race(ctx.channel.id)):
+            # submit only on leaderboard
+            return
+        
         user = ctx.message.author
         role = await self.getrole(ctx)
         if (
@@ -199,11 +226,10 @@ class AsyncRaces(commands.Cog):
                 await ctx.message.delete()
                 return
 
-            await user.add_roles(role)
             delta = timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
             username = re.sub("[()-]", "", user.display_name)
-            leaderboard = await self.getleaderboard(ctx)
-            leaderboard_list = leaderboard.content.split("\n")
+            leaderboard_msg = await self.getleaderboard(ctx)
+            leaderboard_list = leaderboard_msg.content.split("\n")
 
             # the title is at the start and the forfeit # is after the hyphen at
             # the end of the last line
@@ -219,11 +245,11 @@ class AsyncRaces(commands.Cog):
             # convert the time back to hours minutes and seconds for the
             # leaderboard
             totsec = delta.total_seconds()
-            h = totsec // 3600
-            m = (totsec % 3600) // 60
-            s = (totsec % 3600) % 60
+            h = int(totsec // 3600)
+            m = int((totsec % 3600) // 60)
+            s = int((totsec % 3600) % 60)
 
-            leaderboard_list.append([f" {username} ", f"{h:%d}:{m:%02d}:{s:%02d}"])
+            leaderboard_list.append([f" {username} ", f"{h}:{m:02d}:{s:02d}"])
 
             # sort the times
             leaderboard_list.sort(
@@ -238,7 +264,8 @@ class AsyncRaces(commands.Cog):
                 )
             new_leaderboard += "\nForfeits - " + str(forfeits)
 
-            await leaderboard.edit(content=new_leaderboard)
+            await leaderboard_msg.edit(content=new_leaderboard)
+            await user.add_roles(role)
             await (await self.getspoilerchat(ctx)).send(f"GG {user.mention}")
             await ctx.message.delete()
             await self.changeparticipants(ctx)
@@ -257,6 +284,10 @@ class AsyncRaces(commands.Cog):
                         the leaderboard
         :return: None
         """
+        if (self.is_async_race(ctx.channel.id)):
+            # remove only on leaderboard races
+            return
+
         user = ctx.message.author
         if ctx.message.mentions is None:
             await user.send("You did not mention a player.")
@@ -331,32 +362,6 @@ class AsyncRaces(commands.Cog):
             await leaderboard.edit(content=new_leaderboard)
             await ctx.message.delete()
 
-    @commands.command()
-    async def startasync(self, ctx, name=None):
-        if name is None:
-            await ctx.author.send("you forgot to name your race")
-            return
-
-        racethread = await ctx.channel.create_thread(
-            name=name, message=ctx.message, reason="bot generated thread for async race"
-        )
-
-        race = AsyncRace(racethread, name, ctx.author.id)
-        self.active_races[racethread.id] = race
-        await race.start_race()
-
-    @commands.command()
-    async def endasync(self, ctx):
-        race = self.get_race(ctx.channel.id)
-        if not race:
-            await ctx.author.send(
-                "The ?endrace command must be used in an active async race thread"
-            )
-            await ctx.message.delete()
-            return
-
-        await race.end_race(ctx)
-        self.remove_race(race)
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -372,7 +377,11 @@ class AsyncRaces(commands.Cog):
         if not race:
             return
 
-        if message.startswith("?"):
+        # Allow owner messages
+        if message.author.id == race.owner.id:
+            return
+        
+        if message.content.startswith("?"):
             return
 
         await message.delete()
@@ -435,6 +444,11 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: None
         """
+        race = self.get_race(ctx.channel.id)
+        if (race is not None):
+            await race.submit(ctx.author, "00:00:00", "", True)
+            return
+
         user = ctx.message.author
         role = await self.getrole(ctx)
 
@@ -443,7 +457,6 @@ class AsyncRaces(commands.Cog):
             and role not in user.roles
             and role.name in constants.nonadminroles
         ):
-
             await user.add_roles(role)
             leaderboard = await self.getleaderboard(ctx)
             new_leaderboard = leaderboard.content.split("\n")
@@ -459,12 +472,17 @@ class AsyncRaces(commands.Cog):
             await ctx.message.delete()
 
 
-    async def spec(self, ctx):
+    async def spectate(self, ctx):
         """
         Gives the user the appropriate role
         :param ctx: context of the command
         :return: None
         """
+        race = self.get_race(ctx.channel.id)
+        if (race is not None):
+            await race.spectate(ctx.author)
+            return 
+        
         user = ctx.message.author
         role = await self.getrole(ctx)
         if role is not None and role.name in constants.nonadminroles:
@@ -542,11 +560,11 @@ class AsyncRaces(commands.Cog):
             return None
 
         async for x in leaderboard:
+            # assume that the first bot message we see is the leaderboard
             if self.bot.user == x.author:
-                leaderboard = x
-                break
-
-        return leaderboard
+                return x
+            
+        return None
 
 
     async def getspoilerchat(self, ctx):
@@ -608,20 +626,56 @@ class AsyncRaces(commands.Cog):
         or active races that have an end time set.
         """
         current_time = datetime.now()
+        logging.info("Heartbeat check")
 
         # check for active races that should end
-        for _, race in self.active_races:
+        for race in self.active_races.values():
             if (
                 not race.is_started
                 and race.start_time is not None
                 and race.start_time < current_time
             ):
                 await race.start_race()
-
+                await self._save_one(race)
             if (
                 race.is_started
                 and race.end_time is not None
                 and race.end_time < current_time
             ):
                 await race.end_race()
-                del self.active_races[race.race_id]
+                self.remove_race(race)
+                
+
+    def _load_data(self):
+        logging.info("loading saved races")
+        temp = dict(self.redis_db.hgetall('races'))
+        for k, v in temp.items():
+            self.active_races[k.decode("utf-8")] = pickle.loads(v)
+        for race in self.active_races.values():
+            logging.debug(race)
+
+    def _save_one(self, id):
+        logging.info(f"saving race {id}")
+        race = self.active_races[id]
+        self.redis_db.hset("races",
+                           id, pickle.dumps(race,
+                                            protocol=pickle.HIGHEST_PROTOCOL))
+        logging.info("saved")
+        self._verify_save(id)
+
+    def _delete_one(self, id):
+        logging.info(f"deleting race {id}")
+        self.redis_db.hdel("races", id)
+        logging.info("deleted")
+
+    def _verify_save(self, id):
+        original = self.active_races[id]
+        saved = pickle.loads(self.redis_db.hget("races", id))
+        logging.debug(f"original: {original}")
+        logging.debug(f"saved: {saved}")
+        logging.debug(saved == original)
+
+    async def _send_error(self, message):
+        poor_soul = self.bot.get_user(constants.poor_soul_id)
+        await poor_soul.send(message)
+
