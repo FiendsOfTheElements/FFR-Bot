@@ -55,6 +55,11 @@ async def on_ready():
         cmds = bot.tree.get_commands(guild=guild)
         if cmds:
             await bot.tree.sync(guild=guild)
+    async_races = bot.get_cog("AsyncRaces")
+    if (async_races is not None):
+        await async_races.load_data(bot)
+    else:
+        logging.warning("AsyncRaces cog not found on_ready")
 
     logging.info("discord.py version: %s", discord.__version__)
     logging.info("Logged in as")
@@ -107,7 +112,7 @@ async def periodic(interval_sec, coro_name, *args, **kwargs):
 
 async def main(client, token):
     await bot.add_cog(MiscCommandCog(bot))
-    races = Races(bot, redis_races)    
+    races = Races(bot, redis_races)        
     async_races = AsyncRaces(bot, redis_races)
     # schedule the async update to run periodically
     asyncio.create_task(periodic(30, async_races.periodic_race_update))

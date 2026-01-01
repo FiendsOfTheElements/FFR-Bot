@@ -26,13 +26,15 @@ class AsyncRaces(commands.Cog):
         self.bot = bot
         self.redis_db = redis_db
         self.active_races = dict()
+
+    async def load_data(self, bot):
         try:
-            self._load_data()
+            await self._load_data(bot)
         except Exception as e:
-            message = "Error loading saved races, maybe use command clear_db to wipe stored data"
+            message = "Error loading saved races"
             message += traceback.TracebackException.from_exception(e).format().split[:1900]
-            self._send_error(message)
-            logging.error("Error loading saved races, maybe use command clear_db to wipe stored data")
+            await self._send_error(message)
+            logging.error("Error loading saved races")
             logging.exception(e)
 
     def is_async_race(self, channel_id):
@@ -83,7 +85,7 @@ class AsyncRaces(commands.Cog):
 
         await race.init_race()
         self.active_races[race.race_id] = race
-        self._save_one(race.race_id)
+        self._save_one(race)
         await ctx.message.delete()
 
 
@@ -101,8 +103,8 @@ class AsyncRaces(commands.Cog):
             await ctx.message.delete()
             return
         
-        race.start_race()
-        self._save_one(race.race_id)
+        await race.start_race()
+        self._save_one(race)
 
 
     @commands.command()
@@ -119,7 +121,7 @@ class AsyncRaces(commands.Cog):
             await ctx.message.delete()
             return
 
-        race.end_race()
+        await race.end_race()
         self.remove_race(race)
     
 
@@ -176,7 +178,9 @@ class AsyncRaces(commands.Cog):
             await self.submit_leaderboard(ctx, runnertime)        
         else:
             await race.submit(ctx.author, runnertime, vod, False)
-            self._save_one(race.race_id)
+            self._save_one(race)
+
+        await ctx.message.delete()
 
 
     async def submit_leaderboard(self, ctx, runnertime):
@@ -197,12 +201,10 @@ class AsyncRaces(commands.Cog):
             and constants.rolerequiredduckling not in [role.name for role in user.roles]
         ):
             await user.send("You're not a duckling!")
-            await ctx.message.delete()
             return
 
         if runnertime is None:
             await user.send("You must include a time when you submit a time.")
-            await ctx.message.delete()
             return
 
         if (
@@ -267,11 +269,9 @@ class AsyncRaces(commands.Cog):
             await leaderboard_msg.edit(content=new_leaderboard)
             await user.add_roles(role)
             await (await self.getspoilerchat(ctx)).send(f"GG {user.mention}")
-            await ctx.message.delete()
             await self.changeparticipants(ctx)
         else:
             await user.send("You already have the relevent role.")
-            await ctx.message.delete()
 
 
     @commands.command()
@@ -447,6 +447,7 @@ class AsyncRaces(commands.Cog):
         race = self.get_race(ctx.channel.id)
         if (race is not None):
             await race.submit(ctx.author, "00:00:00", "", True)
+            await ctx.message.delete()
             return
 
         user = ctx.message.author
@@ -466,10 +467,9 @@ class AsyncRaces(commands.Cog):
             new_leaderboard = seperator.join(new_leaderboard)
 
             await leaderboard.edit(content=new_leaderboard)
-            await ctx.message.delete()
             await self.changeparticipants(ctx)
-        else:
-            await ctx.message.delete()
+
+        await ctx.message.delete()
 
 
     async def spectate(self, ctx):
@@ -481,6 +481,7 @@ class AsyncRaces(commands.Cog):
         race = self.get_race(ctx.channel.id)
         if (race is not None):
             await race.spectate(ctx.author)
+            await ctx.message.delete()
             return 
         
         user = ctx.message.author
@@ -629,51 +630,61 @@ class AsyncRaces(commands.Cog):
         logging.info("Heartbeat check")
 
         # check for active races that should end
-        for race in self.active_races.values():
-            if (
-                not race.is_started
-                and race.start_time is not None
-                and race.start_time < current_time
-            ):
-                await race.start_race()
-                await self._save_one(race)
-            if (
-                race.is_started
-                and race.end_time is not None
-                and race.end_time < current_time
-            ):
-                await race.end_race()
-                self.remove_race(race)
-                
+        # we have to take a copy because we will mutate active races
+        # as a part of this loop
+        races = self.active_races.values()[:]
+        try:
+            for race in races:
+                if (
+                    not race.is_started
+                    and race.start_time is not None
+                    and race.start_time < current_time
+                ):
+                    await race.start_race()
+                    self._save_one(race)
+                if (
+                    race.is_started
+                    and race.end_time is not None
+                    and race.end_time < current_time
+                ):
+                    await race.end_race()
+                    self.remove_race(race)
+        except Exception as e:
+            poor_soul = self.bot.get_user(constants.poor_soul_id)
+            error_msg = "".join(traceback.TracebackException.from_exception(e).format())[:1950]
+            await poor_soul.send("Error in FFRBot!!")
+            await poor_soul.send(error_msg)
 
-    def _load_data(self):
+    async def _load_data(self, bot):
         logging.info("loading saved races")
         temp = dict(self.redis_db.hgetall('races'))
         for k, v in temp.items():
-            self.active_races[k.decode("utf-8")] = pickle.loads(v)
-        for race in self.active_races.values():
-            logging.debug(race)
+            race_data = pickle.loads(v)
+            logging.debug(race_data)
+            self.active_races[race_data["race_id"]] = await AsyncRace.from_dict(race_data, bot)
+            logging.debug(f"loaded race {self.active_races[race_data['race_id']]}")
 
-    def _save_one(self, id):
-        logging.info(f"saving race {id}")
-        race = self.active_races[id]
+    def _save_one(self, race):
+        logging.info(f"saving race {race.race_id}")
+        race_data = race.to_dict()
         self.redis_db.hset("races",
-                           id, pickle.dumps(race,
+                           race.race_id, pickle.dumps(race_data,
                                             protocol=pickle.HIGHEST_PROTOCOL))
         logging.info("saved")
-        self._verify_save(id)
+        self._verify_save(race)
 
     def _delete_one(self, id):
         logging.info(f"deleting race {id}")
         self.redis_db.hdel("races", id)
         logging.info("deleted")
 
-    def _verify_save(self, id):
-        original = self.active_races[id]
-        saved = pickle.loads(self.redis_db.hget("races", id))
+    def _verify_save(self, race):
+        original = race.to_dict()
+        saved = pickle.loads(self.redis_db.hget("races", race.race_id))
         logging.debug(f"original: {original}")
         logging.debug(f"saved: {saved}")
         logging.debug(saved == original)
+        # throw error here?
 
     async def _send_error(self, message):
         poor_soul = self.bot.get_user(constants.poor_soul_id)
