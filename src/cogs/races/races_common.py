@@ -57,7 +57,8 @@ class RacesCommon(commands.Cog):
         msg = await ctx.channel.send(
             flagseedgen(url)
         )
-        await msg.pin()
+        if (is_race_room(ctx)):
+            await msg.pin()
 
     @commands.command()
     async def ff1seed(self, ctx):

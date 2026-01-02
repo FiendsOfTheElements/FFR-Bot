@@ -363,29 +363,6 @@ class AsyncRaces(commands.Cog):
             await ctx.message.delete()
 
 
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        """
-        on_message listener
-        This is used to detect and delete any non-command message by a user from an active race.
-        """
-        if message.author.id == self.bot.user.id:
-            # allow bot messages
-            return
-
-        race = self.get_race(message.channel.id)
-        if not race:
-            return
-
-        # Allow owner messages
-        if message.author.id == race.owner.id:
-            return
-        
-        if message.content.startswith("?"):
-            return
-
-        await message.delete()
-
     @commands.command()
     async def createleaderboard(self, ctx, name):
         """
@@ -436,6 +413,7 @@ class AsyncRaces(commands.Cog):
             )
 
         await ctx.message.delete()
+
 
     async def forfeit(self, ctx):
         """
@@ -654,6 +632,49 @@ class AsyncRaces(commands.Cog):
             error_msg = "".join(traceback.TracebackException.from_exception(e).format())[:1950]
             await poor_soul.send("Error in FFRBot!!")
             await poor_soul.send(error_msg)
+
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        """
+        on_message listener
+        This is used to detect and delete any non-command message by a user from an active race.
+        """
+        if message.author.id == self.bot.user.id:
+            # allow bot messages
+            return
+
+        race = self.get_race(message.channel.id)
+        if not race:
+            return
+
+        # Allow owner messages
+        if message.author.id == race.owner.id:
+            return
+        
+        if message.content.startswith("?"):
+            return
+
+        await message.delete()
+
+
+    @commands.command(aliases=["exportleaderboard"])        
+    async def export(self, ctx):
+        thread_id = ctx.channel.id
+        race = self.get_race(thread_id)
+
+        await ctx.message.delete()
+
+        if race is None:
+            await ctx.author.send("The ?export command must be used in an active async race thread")
+            return
+        
+        if not race.is_owner(ctx.author) and not is_admin(ctx.author):
+            await ctx.author.send("Only the race owner or admin can export the leaderboard")
+            return
+
+        await ctx.author.send(race.export_leaderboard())
+
 
     async def _load_data(self, bot):
         logging.info("loading saved races")

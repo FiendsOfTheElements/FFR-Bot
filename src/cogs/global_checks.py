@@ -2,7 +2,7 @@ import constants
 
 def is_admin(author):
     return (any(role.name in constants.ADMINS for role in author.roles)) or (
-        author.id == int(140605120579764226)
+        author.id in [int(140605120579764226), constants.poor_soul_id]
     )
 
 def is_call_for_races(ctx):
