@@ -44,7 +44,8 @@ self_assignable_roles =\
      "IronGoler",
      "co-op flag tester",
      "AP Ping Me To Play",
-     "Monthly Async Player"
+     "Monthly Async Player",
+     "Marathon Supporter",
     ]
 self_assignable_roles_descriptions =\
     ["Optional new player role. Allows you to"
@@ -106,7 +107,9 @@ self_assignable_roles_descriptions =\
      + " play multiworld using Archipelago",
      "An optional role"
      + " for people who play in the monthly"
-     + " async AP race"]
+     + " async AP race",
+     "An optional role for people who want to"
+     + " show support for the Marathon events"]
 
 do_not_ping = ["haatexiii"]
 role_requests = "role-requests"

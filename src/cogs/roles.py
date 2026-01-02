@@ -61,9 +61,14 @@ class Roles(commands.Cog):
             .send("Self assignable roles:\n\n"
                   + "\n\n".join([x[0] + ": " + x[1] for x in
                                  zip(constants
-                                     .self_assignable_roles,
+                                     .self_assignable_roles[:8],
                                      constants.
-                                     self_assignable_roles_descriptions)]))
+                                     self_assignable_roles_descriptions[:8])]))
+        await ctx.author.send("\n\n".join([x[0] + ": " + x[1] for x in
+                                         zip(constants
+                                             .self_assignable_roles[8:],
+                                             constants.
+                                             self_assignable_roles_descriptions[8:])]))
         await ctx.author.send('\n\nCommands:\n\n use ?addrole'
                   + ' "rolename" in role-requests'
                   + " to add yourself to a role, or you can"
