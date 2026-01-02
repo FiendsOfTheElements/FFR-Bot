@@ -31,7 +31,9 @@ class MiscCommandCog(commands.Cog):
         rollargs[1] = int(rollargs[1])
         result = [ceil(random() * rollargs[1]) for i in range(rollargs[0])]
         textresult = f"{format(match.group())} result: **{sum(result)}**"
-        await ctx.message.channel.send(textresult)
+        msg = await ctx.message.channel.send(textresult)
+        if sum(result) == 8:
+            await msg.add_reaction("<:jshydell:1373079716004630609>")
 
 
     @commands.command()

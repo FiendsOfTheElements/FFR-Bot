@@ -59,7 +59,8 @@ class AsyncRace:
         race.is_started = data["is_started"]
         race.is_finished = data["is_finished"]
         race.announcement_message = await race.race_thread.fetch_message(data["announcement_message_id"])
-        race.leaderboard_message = await race.race_thread.fetch_message(data["leaderboard_message_id"])
+        if data["leaderboard_message_id"] is not None:
+            race.leaderboard_message = await race.race_thread.fetch_message(data["leaderboard_message_id"])
         race.leaderboard = data["leaderboard"]
         return race
 
@@ -79,7 +80,7 @@ class AsyncRace:
             "is_started": self.is_started,
             "is_finished": self.is_finished,
             "announcement_message_id": self.announcement_message.id,
-            "leaderboard_message_id": self.leaderboard_message.id,
+            "leaderboard_message_id": self.leaderboard_message.id if self.leaderboard_message else None,
             "leaderboard": self.leaderboard
         }    
 
@@ -207,6 +208,19 @@ class AsyncRace:
             return
         if vod is None and not is_forfeit:
             await self.owner.send("You must provide a VOD link when submitting a time")
+            return
+        
+        try:
+            if not is_forfeit:
+                if runner_time.count(":") == 1:
+                    # allow for MM:SS format
+                    runner_time = "00:" + runner_time
+
+                datetime.strptime(runner_time, "%H:%M:%S")
+        except ValueError:
+            await self.owner.send("The time you provided '"
+                    + str(runner_time)
+                    + "' is not in the format HH:MM:SS")
             return
         
         entry = AsyncLeaderboardEntry(runner, runner_time, vod, is_forfeit)

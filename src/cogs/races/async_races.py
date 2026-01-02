@@ -18,7 +18,7 @@ class StartAsyncFlags(commands.FlagConverter):
     race_role: Optional[str]
     start_timestamp: Optional[int]
     end_timestamp: Optional[int]
-
+# 
 
 class AsyncRaces(commands.Cog):
 
@@ -217,15 +217,17 @@ class AsyncRaces(commands.Cog):
                 # readable and valid
                 # also allows for time input to be lazy, ie 1:2:3 == 01:02:03 yet
                 # still maintain a consistent style on the leaderboard
+                if (runnertime.count(":") == 1):                    
+                    # allow mm:ss input as well
+                    runnertime = "0:" + runnertime
+
                 t = datetime.strptime(runnertime, "%H:%M:%S")
             except ValueError:
                 await user.send(
                     "The time you provided '"
                     + str(runnertime)
-                    + "', this is not in the format HH:MM:SS"
-                    "(or you took a day or longer)"
+                    + "', is not in the format HH:MM:SS"
                 )
-                await ctx.message.delete()
                 return
 
             delta = timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
@@ -610,7 +612,7 @@ class AsyncRaces(commands.Cog):
         # check for active races that should end
         # we have to take a copy because we will mutate active races
         # as a part of this loop
-        races = self.active_races.values()[:]
+        races = list(self.active_races.values())[:]
         try:
             for race in races:
                 if (
