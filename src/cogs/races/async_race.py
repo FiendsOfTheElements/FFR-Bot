@@ -84,7 +84,7 @@ class AsyncRace:
             "leaderboard": self.leaderboard
         }    
 
-    async def init_race(self, purge_role=False):
+    async def init_race(self):
         """
         Initializes (and possibly starts) the async race        
         """
@@ -105,6 +105,14 @@ class AsyncRace:
         await self.race_thread.add_user(self.owner)
         await self.spoiler_thread.add_user(self.owner)
 
+        # if role is set, add all members with that role to the race
+        if (self.race_role is not None):
+            roles = self.race_thread.guild.roles
+            role = next((r for r in roles if r.name == self.race_role), None)
+            if role is not None:
+                for member in role.members:
+                    await self.race_thread.add_user(member)
+
         self.race_id = self.race_thread.id
                 
         if self.start_time is None:
@@ -115,7 +123,7 @@ class AsyncRace:
             )
 
         
-    async def start_race(self, purge_role=False):
+    async def start_race(self):
         """
         If the start time has passed, opens the race to submissions.
         This is done by posting the name and seed along with instructions in a
@@ -126,12 +134,7 @@ class AsyncRace:
                 "Call to start_race while {%s} was not in ready state", self.name
             )
             raise CommandError
-
-        if (purge_role):
-            role_members = [x for x in self.race_thread.guild.members if self.race_role in x.roles]
-            for m in role_members:
-                await m.remove_roles(self.race_role)
-
+            
         self.seed = flagseedgen(self.flags)
         race_str = f"**{self.name}**\n\n"
         if self.end_time is not None:
@@ -144,7 +147,7 @@ class AsyncRace:
         race_str += "To spectate, use the command `?spectate` or `?spec`.\n\n"
         race_str += "GLHF to all the runners.\n\n"
         race_str = race_str + f"{self.seed}\n\n"
-        
+
         if self.announcement_message is not None:
             await self.announcement_message.edit(content=race_str)
         else:
@@ -181,12 +184,6 @@ class AsyncRace:
             leaderboard_str = leaderboard_str + "\n\nForfeits:\n"
             for i, entry in enumerate(forfeits):
                 leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"
-
-        # Grant the race role to all participants
-        # participants = [entry.runner for entry in self.leaderboard]
-        # for _, participant in enumerate(participants):
-        #    role = get(self.race_thread.guild.roles, name=self.race_role)
-        #    await participant.add_roles(role)
 
         # post the final leaderboard
         await self.race_thread.send(leaderboard_str)
