@@ -10,7 +10,7 @@ from discord.ext import commands
 from discord.utils import get
 
 from cogs.races.ffrrace import Race, RaceNotLockable
-from cogs.global_checks import is_admin, is_call_for_races, is_call_for_multiworld, allow_seed_rolling
+from cogs.global_checks import is_admin, is_call_for_races, is_call_for_multiworld
 import constants
 
 
