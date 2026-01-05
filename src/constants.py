@@ -2,6 +2,7 @@ ADMINS = ["admin", "dev admin", "arbiter"]
 mod_role = "moderator"
 admin_role = "admin"
 arbitor_role = "arbiter"
+poor_soul_id = 478735647449022482
 Sleep_Time = 5000
 moderation_channel = "moderation"
 ducklingchannel = 'duckling-weekly'
