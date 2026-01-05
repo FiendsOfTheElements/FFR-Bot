@@ -60,6 +60,9 @@ async def on_ready():
         await async_races.load_data(bot)
     else:
         logging.warning("AsyncRaces cog not found on_ready")
+    
+    poor_soul = bot.get_user(constants.poor_soul_id)
+    await poor_soul.send("FFRBot has restarted!")
 
     logging.info("discord.py version: %s", discord.__version__)
     logging.info("Logged in as")
