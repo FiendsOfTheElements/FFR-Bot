@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import io
 import logging
 import re
 
@@ -177,6 +178,11 @@ class AsyncRace:
 
         # post the final leaderboard
         await self.race_thread.send(leaderboard_str)
+
+        # send the CSV export to the owner
+        leaderboard_csv = self.export_leaderboard()
+        file_data = io.BytesIO(leaderboard_csv.encode('utf-8'))
+        await self.owner.send(f"Here is the CSV export of the final leaderboard for {self.name}:", file=discord.File(fp=file_data, filename=f"{self.name}_leaderboard.csv"))
 
         self.is_started = False
         self.is_finished = True
