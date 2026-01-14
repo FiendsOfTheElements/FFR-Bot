@@ -1,3 +1,4 @@
+import io
 import re
 import logging
 import pickle
@@ -5,6 +6,7 @@ import traceback
 from datetime import datetime, timedelta
 from typing import List, Optional
 
+import discord
 from discord.ext import commands
 from discord.utils import get
 
@@ -675,7 +677,9 @@ class AsyncRaces(commands.Cog):
             await ctx.author.send("Only the race owner or admin can export the leaderboard")
             return
 
-        await ctx.author.send(race.export_leaderboard())
+        leaderboard_csv = race.export_leaderboard()
+        file_data = io.BytesIO(leaderboard_csv.encode('utf-8'))
+        await ctx.author.send(f"Here is the CSV export of the current leaderboard for {race.name}:", file=discord.File(fp=file_data, filename=f"{race.name}_leaderboard.csv"))
 
 
     async def _load_data(self, bot):
