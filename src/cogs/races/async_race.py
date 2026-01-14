@@ -173,17 +173,7 @@ class AsyncRace:
         finished_racers = [entry for entry in self.leaderboard if not entry.is_forfeit and not entry.is_spectator]
         finished_racers.sort(key=lambda x: x.time_delta)
         leaderboard_str = "Final Leaderboard:\n"
-        if len(finished_racers) == 0:
-            leaderboard_str = leaderboard_str + "No finishers!\n"
-        else:            
-            for i, entry in enumerate(finished_racers):
-                leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"
-
-        forfeits = [entry for entry in self.leaderboard if entry.is_forfeit and not entry.is_spectator]
-        if len(forfeits) > 0:
-            leaderboard_str = leaderboard_str + "\n\nForfeits:\n"
-            for i, entry in enumerate(forfeits):
-                leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"
+        leaderboard_str = leaderboard_str + self._build_leaderboard_string()
 
         # post the final leaderboard
         await self.race_thread.send(leaderboard_str)
@@ -246,11 +236,46 @@ class AsyncRace:
         """
         Returns the leaderboard as a comma separated string
         """
-        leaderboard_str = "Runner,Time,VOD\n"
-        for entry in self.leaderboard:
-            if (not entry.is_spectator):
-                leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.runner_time if not entry.is_forfeit else "DNF"},{entry.vod}\n"
+        leaderboard_str = "Runner,Time,VOD,Bin\n"
+        leaderboard_str = leaderboard_str + self._build_leaderboard_string(comma_separated=True)
         return leaderboard_str
+
+    def _build_leaderboard_string(self, comma_separated=False):
+        finished_racers = [entry for entry in self.leaderboard if not entry.is_forfeit and not entry.is_spectator]
+        finished_racers.sort(key=lambda x: x.time_delta)
+        leaderboard_str = ""
+        if len(finished_racers) == 0 and not comma_separated:
+            leaderboard_str = leaderboard_str + "No finishers!\n"
+        else:            
+            bin_end_time = -1
+            bin_number = 1
+            for i, entry in enumerate(finished_racers):
+                # we want to bin the users here as well, based on finish time.
+                if bin_end_time == -1:
+                    # first bin
+                    bin_end_time = entry.time_delta.total_seconds() + 60  # 1 minute bins
+                elif entry.time_delta.total_seconds() > bin_end_time and bin_number < 6:
+                    # runner is in the next bin of six possible bins
+                    bin_number += 1
+                    bin_end_time = entry.time_delta.total_seconds() + 60 # 1 minute bins
+
+                if comma_separated:
+                    leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.runner_time},{entry.vod if entry.vod else ''},{bin_number}\n"
+                else:
+                    leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)} (Bin {bin_number})\n"
+
+        forfeits = [entry for entry in self.leaderboard if entry.is_forfeit and not entry.is_spectator]
+        if len(forfeits) > 0:
+            if not comma_separated:
+                leaderboard_str = leaderboard_str + "\n\nForfeits:\n"
+            for i, entry in enumerate(forfeits):
+                if comma_separated:
+                    leaderboard_str = leaderboard_str + f"{entry.runner_name},DNF,,\n"
+                else:
+                    leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"
+
+        return leaderboard_str
+
 
     def to_dict(self): 
         return {
