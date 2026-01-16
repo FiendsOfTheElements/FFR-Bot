@@ -194,13 +194,13 @@ class AsyncRace:
         """
         # Guard conditions
         if not self.is_started or self.is_finished:
-            await self.owner.send(f"{self.name} is not open for time submissions")
+            await runner.send(f"{self.name} is not open for time submissions")
             return
         if runner.id in self.leaderboard:
-            await self.owner.send("You have already submitted a time for this race")
+            await runner.send("You have already submitted a time for this race")
             return
         if vod is None and not is_forfeit:
-            await self.owner.send("You must provide a VOD link when submitting a time")
+            await runner.send("You must provide a VOD link when submitting a time")
             return
         
         try:
@@ -211,7 +211,7 @@ class AsyncRace:
 
                 datetime.strptime(runner_time, "%H:%M:%S")
         except ValueError:
-            await self.owner.send("The time you provided '"
+            await runner.send("The time you provided '"
                     + str(runner_time)
                     + "' is not in the format HH:MM:SS")
             return
