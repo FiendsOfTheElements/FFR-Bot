@@ -57,6 +57,7 @@ class AsyncRaces(commands.Cog):
         Race is created as a thread of the current channel
         """
         owner = ctx.message.author
+
         if not is_admin(owner):
             await owner.send("You do not have permission to create async races right now")
             await ctx.message.delete()
@@ -67,6 +68,13 @@ class AsyncRaces(commands.Cog):
             await ctx.message.delete()
             return
 
+        if flags.race_role is not None:
+            role = get(ctx.channel.guild.roles, name=flags.race_role)
+            if role is None:
+                await owner.send(f"The role '{flags.race_role}' does not exist.")
+                await ctx.message.delete()
+                return
+            
         race = AsyncRace(
             ctx.channel,
             flags.name,
@@ -126,6 +134,26 @@ class AsyncRaces(commands.Cog):
         await race.end_race()
         self.remove_race(race)
     
+    @commands.command(aliases=["cancel"])
+    async def cancelasync(self, ctx):
+        thread_id = ctx.channel.id
+        race = self.get_race(thread_id)
+        await ctx.message.delete()
+        if race is None:
+            await ctx.author.send("The ?cancelasync command must be used in an active async race thread")
+            return
+        
+        if ctx.author.id != race.owner.id and not is_admin(ctx.author):
+            await ctx.author.send("Only the race owner or admin can cancel the async race")
+            return
+        
+        if not race.is_started and not race.is_finished:
+            await race.cancel_race()
+            self.remove_race(race)
+            return
+        
+        await ctx.author.send("The ?cancelasync command must be used only in scheduled async races that have not yet started. Use ?endasync instead")
+
 
     @commands.command()
     async def purgemembers(self, ctx):

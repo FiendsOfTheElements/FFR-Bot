@@ -38,6 +38,7 @@ class AsyncRace:
         self.is_finished = False
         self.announcement_message = None
         self.leaderboard_message = None
+        self.spoiler_leaderboard_message = None
         self.leaderboard = []
 
     @classmethod
@@ -154,9 +155,19 @@ class AsyncRace:
         else:
             self.announcement_message = await self.race_thread.send(race_str)
 
+        if self.race_role is not None:
+            role = get(self.race_thread.guild.roles, name=self.race_role)
+            if role is not None:
+                await self.race_thread.send(role.mention)
+        
         self.leaderboard_message = await self.race_thread.send(
             "Number of participants: 0"
         )
+
+        self.spoiler_leaderboard_message = await self.spoiler_thread.send(
+            "Current Leaderboard:\nNo finishers yet!"
+        )
+        await self.spoiler_leaderboard_message.pin()
 
         self.is_started = True
 
@@ -185,6 +196,18 @@ class AsyncRace:
         await self.owner.send(f"Here is the CSV export of the final leaderboard for {self.name}:", file=discord.File(fp=file_data, filename=f"{self.name}_leaderboard.csv"))
 
         self.is_started = False
+        self.is_finished = True
+
+    async def cancel_race(self):
+        """
+        Cancels a scheduled race
+        """
+        if self.is_started or self.is_finished:
+            logging.info("Cannot cancel started races, they must be ended instead")
+            return
+
+        await self.spoiler_thread.delete()
+        await self.race_thread.send("This race has been cancelled.")
         self.is_finished = True
 
     async def submit(self, runner, runner_time, vod, is_forfeit):
@@ -218,7 +241,21 @@ class AsyncRace:
         
         entry = AsyncLeaderboardEntry(runner, runner_time, vod, is_forfeit)
         self.leaderboard.append(entry)
+        
+        # Spoiler thread updates
         await self.spoiler_thread.add_user(runner)
+        await self.spoiler_thread.send(f"GG {runner.mention}")
+        if self.spoiler_leaderboard_message is not None:
+            await self.spoiler_leaderboard_message.edit(
+                content="Current Leaderboard:\n" + self._build_leaderboard_string(show_bins=False)
+            )
+        else:
+            self.spoiler_leaderboard_message = await self.spoiler_thread.send(
+                "Current Leaderboard:\n" + self._build_leaderboard_string(show_bins=False)
+            )
+            await self.spoiler_leaderboard_message.pin()
+
+        # Leaderboard updates
         await self.leaderboard_message.edit(
             content=f"Number of participants: {len(self.leaderboard)}"
         )
@@ -231,6 +268,7 @@ class AsyncRace:
         entry = AsyncLeaderboardEntry(user, "00:00:00", None, False, True)
         self.leaderboard.append(entry)
         await self.spoiler_thread.add_user(user)
+        await self.spoiler_thread.send(f"{user.mention} is now spectating!")
 
     def is_owner(self, user):
         """
@@ -246,7 +284,7 @@ class AsyncRace:
         leaderboard_str = leaderboard_str + self._build_leaderboard_string(comma_separated=True)
         return leaderboard_str
 
-    def _build_leaderboard_string(self, comma_separated=False):
+    def _build_leaderboard_string(self, comma_separated=False, show_bins=True):
         finished_racers = [entry for entry in self.leaderboard if not entry.is_forfeit and not entry.is_spectator]
         finished_racers.sort(key=lambda x: x.time_delta)
         leaderboard_str = ""
@@ -268,12 +306,15 @@ class AsyncRace:
                 if comma_separated:
                     leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.runner_time},{entry.vod if entry.vod else ''},{bin_number}\n"
                 else:
-                    leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)} (Bin {bin_number})\n"
+                    if show_bins:
+                        leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)} (Bin {bin_number})\n"
+                    else:
+                        leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"                            
 
         forfeits = [entry for entry in self.leaderboard if entry.is_forfeit and not entry.is_spectator]
         if len(forfeits) > 0:
             if not comma_separated:
-                leaderboard_str = leaderboard_str + "\n\nForfeits:\n"
+                leaderboard_str = leaderboard_str + "\nForfeits:\n"
             for i, entry in enumerate(forfeits):
                 if comma_separated:
                     leaderboard_str = leaderboard_str + f"{entry.runner_name},DNF,,\n"
@@ -299,7 +340,8 @@ class AsyncRace:
             "is_started": self.is_started,
             "is_finished": self.is_finished,
             "announcement_message_id": self.announcement_message.id,
-            "leaderboard_message_id": self.leaderboard_message.id,
+            "leaderboard_message_id": self.leaderboard_message.id if self.leaderboard_message else None,
+            "spoiler_leaderboard_message_id": self.spoiler_leaderboard_message.id if self.spoiler_leaderboard_message else None,
             "leaderboard": self.leaderboard
         }    
     
@@ -340,7 +382,7 @@ class AsyncLeaderboardEntry:
         # leaderboard
         entry_str = f"{self.runner_name} - {h}:{m:02d}:{s:02d}"
         if self.vod:
-            entry_str = entry_str + f"- <{self.vod}>"
+            entry_str = entry_str + f" - <{self.vod}>"
 
         return entry_str
 
