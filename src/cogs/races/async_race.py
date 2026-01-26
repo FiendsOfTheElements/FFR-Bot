@@ -304,7 +304,7 @@ class AsyncRace:
                 elif entry.time_delta.total_seconds() > bin_end_time and bin_number < 6:
                     # runner is in the next bin of six possible bins
                     bin_number += 1
-                    bin_end_time = entry.time_delta.total_seconds() + 60 # 1 minute bins
+                    bin_end_time = entry.time_delta.total_seconds() + (60 * 2 ** bin_number) # increase bin size exponentially
 
                 if comma_separated:
                     leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.runner_time},{entry.vod if entry.vod else ''},{bin_number}\n"
