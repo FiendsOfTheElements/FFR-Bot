@@ -63,6 +63,8 @@ class AsyncRace:
         race.announcement_message = await race.race_thread.fetch_message(data["announcement_message_id"])
         if data["leaderboard_message_id"] is not None:
             race.leaderboard_message = await race.race_thread.fetch_message(data["leaderboard_message_id"])
+        if data.get("spoiler_leaderboard_message_id") is not None:
+            race.spoiler_leaderboard_message = await race.spoiler_thread.fetch_message(data["spoiler_leaderboard_message_id"])
         race.leaderboard = data["leaderboard"]
         return race
 
@@ -83,6 +85,7 @@ class AsyncRace:
             "is_finished": self.is_finished,
             "announcement_message_id": self.announcement_message.id,
             "leaderboard_message_id": self.leaderboard_message.id if self.leaderboard_message else None,
+            "spoiler_leaderboard_message_id": self.spoiler_leaderboard_message.id if self.spoiler_leaderboard_message else None,
             "leaderboard": self.leaderboard
         }    
 
@@ -101,7 +104,7 @@ class AsyncRace:
             name=self.name, message=None, type=discord.ChannelType.public_thread, reason="bot generated thread for async race")
 
         self.spoiler_thread = await self.race_channel.create_thread(
-            name=f"{self.name} - Spoilers", message=None, type=discord.ChannelType.private_thread, reason="bot generated spoiler thread for async", invitable=False,
+            name=f"[Spoiler] - {self.name}", message=None, type=discord.ChannelType.private_thread, reason="bot generated spoiler thread for async", invitable=False,
         )
 
         await self.race_thread.add_user(self.owner)

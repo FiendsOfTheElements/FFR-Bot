@@ -35,7 +35,7 @@ class RacesCommon(commands.Cog):
             return
         await self.async_races.spectate(ctx)
 
-    @commands.command(aliases=["ff"])
+    @commands.command(aliases=["ff", "dnf"])
     async def forfeit(self, ctx):
         if is_race_room(ctx):
             await self.races.forfeit(ctx)
@@ -46,7 +46,7 @@ class RacesCommon(commands.Cog):
         aliases=["ff1url", "ff1roll", "ffrroll", "rollseedurl", "roll_ffr_url_seed"]
     )
     async def ffrurl(self, ctx, url):
-        if not ctx.channel.name in constants.call_for_race_channels and not is_race_room(ctx):
+        if not ctx.channel.name in constants.call_for_races_channels and not is_race_room(ctx):
             return
 
         user = ctx.author
@@ -62,7 +62,7 @@ class RacesCommon(commands.Cog):
 
     @commands.command()
     async def ff1seed(self, ctx):
-        if not ctx.channel.name in constants.call_for_race_channels and not is_race_room(ctx):
+        if not ctx.channel.name in constants.call_for_races_channels and not is_race_room(ctx):
             return
 
         await ctx.channel.send("{0:-0{1}x}".format(random.randint(0, 4294967295), 8))
