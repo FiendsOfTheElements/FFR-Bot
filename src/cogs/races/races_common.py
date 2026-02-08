@@ -1,5 +1,5 @@
 import random
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from discord.ext import commands
 
@@ -8,12 +8,11 @@ import constants
 
 def flagseedgen(url):
     parsed = urlparse(url)
-    flags = parse_qs(parsed.query)["f"][0]
-    site = parsed.hostname
+    query_string = parse_qs(parsed.query)
     seed = random.randint(0, 4294967295)
     hex_seed = "{0:-0{1}x}".format(seed, 8)
-    url = f"<https://{site}/Randomize?s={hex_seed}&f={flags}>"
-    return url
+    query_string['s'] = hex_seed
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, urlencode(query_string, doseq=True), parsed.fragment))
 
 
 class RacesCommon(commands.Cog):
