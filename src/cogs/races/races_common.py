@@ -29,14 +29,14 @@ class RacesCommon(commands.Cog):
         self.async_races = async_races
 
 
-    @commands.command(aliases=["s", "spec"])
+    @commands.hybrid_command(aliases=["s", "spec"])
     async def spectate(self, ctx):
         if is_race_room(ctx):
             await self.races.spectate(ctx, -1)
             return
         await self.async_races.spectate(ctx)
 
-    @commands.command(aliases=["ff", "dnf"])
+    @commands.hybrid_command(aliases=["ff", "dnf"])
     async def forfeit(self, ctx, teammate: Optional[discord.Member] = None):
         if is_race_room(ctx):
             await self.races.forfeit(ctx)

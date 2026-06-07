@@ -52,9 +52,9 @@ redis_polls = redis.StrictRedis(connection_pool=redis_pool)
 async def on_ready():
     await bot.tree.sync()
     for guild in bot.guilds:
-        cmds = bot.tree.get_commands(guild=guild)
-        if cmds:
-            await bot.tree.sync(guild=guild)
+        logging.info(f"Syncing commands for guild {guild.name} ({guild.id})")
+        await bot.tree.sync(guild=guild)
+
     async_races = bot.get_cog("AsyncRaces")
     if (async_races is not None):
         await async_races.load_data(bot)
