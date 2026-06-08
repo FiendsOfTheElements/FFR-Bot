@@ -50,11 +50,6 @@ redis_polls = redis.StrictRedis(connection_pool=redis_pool)
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
-    for guild in bot.guilds:
-        logging.info(f"Syncing commands for guild {guild.name} ({guild.id})")
-        await bot.tree.sync(guild=guild)
-
     async_races = bot.get_cog("AsyncRaces")
     if (async_races is not None):
         await async_races.load_data(bot)
@@ -70,6 +65,16 @@ async def on_ready():
     logging.info(bot.user.id)
     logging.info("------")
 
+@bot.command
+async def sync(ctx):
+    if (ctx.author.id != constants.poor_soul_id):
+        await ctx.author.send("You don't have permission to use this command.")
+        return
+    
+    await bot.tree.sync(ctx.guild)    
+    await ctx.author.send("Synced commands for this guild")
+    await bot.tree.sync()
+    await ctx.author.send("Synced commands globally")
 
 @bot.event
 async def on_command_error(ctx, error):

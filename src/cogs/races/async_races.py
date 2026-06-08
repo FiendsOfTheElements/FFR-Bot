@@ -194,7 +194,7 @@ class AsyncRaces(commands.Cog):
 
         await ctx.message.delete()
 
-    @commands.hybrid_command()
+    @commands.hybrid_command(description="Submit your time alongside a VOD for the async race.")
     async def submit(self, ctx, runnertime: str | None = None, vod: str | None = None, teammate: discord.Member = None, teammate_vod: str | None = None):
         """
         Submits a runners time to an async race
