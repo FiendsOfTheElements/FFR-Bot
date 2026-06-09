@@ -153,7 +153,7 @@ class AsyncRace:
             race_str += "Async race has started. You have until this thread is closed to submit your time.\n"
         
         if (self.is_coop):
-            race_str += "To submit a time, use the command `?submit <time> <vod> <@teammate>`\n"
+            race_str += "To submit a time, use the command `?submit <time> <your_vod> <@teammate> <teammate_vod>`\n"
             race_str += "To forfeit, use the command `?forfeit <@teammate>` or `?ff <@teammate>`. No vod is required for a forfeit.\n"
         else:
             race_str += "To submit a time, use the command `?submit <time> <vod>`\n"
@@ -223,7 +223,7 @@ class AsyncRace:
         await self.race_thread.send("This race has been cancelled.")
         self.is_finished = True
 
-    async def submit(self, runner, runner_time, vod, is_forfeit, teammate: discord.Member | None = None):
+    async def submit(self, runner, runner_time, vod, is_forfeit, teammate: discord.Member | None = None, teammate_vod: str | None = None):
         """
         Submits a time to the async. This sends a message to the owner and adds the runner to the spoiler thread, 
         but does not publish the time until the race has finished.
@@ -241,7 +241,10 @@ class AsyncRace:
         if self.is_coop and teammate is None:
             await runner.send("You must mention a teammate when submitting a time for a co-op race")
             return
-            
+        if self.is_coop and teammate_vod is None and not is_forfeit:
+            await runner.send("You must provide a VOD link for your teammate when submitting a time for a co-op race")
+            return
+        
         try:
             if not is_forfeit:
                 if runner_time.count(":") == 1:
@@ -255,7 +258,7 @@ class AsyncRace:
                     + "' is not in the format HH:MM:SS")
             return
         
-        entry = AsyncLeaderboardEntry(runner, runner_time, vod, is_forfeit, False, teammate)
+        entry = AsyncLeaderboardEntry(runner, runner_time, vod, is_forfeit, False, teammate, teammate_vod)
         self.leaderboard.append(entry)
         
         # Spoiler thread updates
@@ -325,7 +328,10 @@ class AsyncRace:
                     bin_end_time = entry.time_delta.total_seconds() + (60 * (2 ** (bin_number - 1))) # increase bin size exponentially
 
                 if comma_separated:
-                    leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.runner_time},{entry.vod if entry.vod else ''},{bin_number}\n"
+                    if self.is_coop and entry.teammate_name is not None:
+                        leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.teammate_name},{entry.runner_time},{entry.vod if entry.vod else ''},{entry.teammate_vod if entry.teammate_vod else ''},{bin_number}\n"
+                    else:
+                        leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.runner_time},{entry.vod if entry.vod else ''},{bin_number}\n"
                 else:
                     if show_bins:
                         leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)} (Bin {bin_number})\n"
@@ -376,7 +382,7 @@ class AsyncLeaderboardEntry:
     Entry in the leaderboard for an async race
     """
 
-    def __init__(self, runner, runner_time: str, vod: str, is_forfeit=False, is_spectator=False, teammate: discord.Member | None = None):
+    def __init__(self, runner, runner_time: str, vod: str, is_forfeit=False, is_spectator=False, teammate: discord.Member | None = None, teammate_vod: str | None = None):
         """
         runner_name - name of the submitter to the leaderboard
         time - runners time in HH:MM:SS format
@@ -392,6 +398,7 @@ class AsyncLeaderboardEntry:
         self.is_spectator = is_spectator
         self.teammate_name = re.sub("[()-]", "", teammate.display_name) if teammate is not None else None
         self.teammate_id = teammate.id if teammate is not None else None
+        self.teammate_vod = teammate_vod
 
     def __str__(self):
         if self.is_forfeit:
@@ -411,6 +418,8 @@ class AsyncLeaderboardEntry:
             entry_str = f"{self.runner_name} - {h}:{m:02d}:{s:02d}"
         if self.vod:
             entry_str = entry_str + f" - <{self.vod}>"
+        if self.teammate_vod:
+            entry_str = entry_str + f" - <{self.teammate_vod}>"
 
         return entry_str
 

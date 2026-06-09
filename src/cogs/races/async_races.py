@@ -195,7 +195,7 @@ class AsyncRaces(commands.Cog):
         await ctx.message.delete()
 
     @commands.command()
-    async def submit(self, ctx, runnertime: str | None = None, vod: str | None = None, teammate: discord.Member = None):
+    async def submit(self, ctx, runnertime: str | None = None, vod: str | None = None, teammate: discord.Member = None, teammate_vod: str | None = None):
         """
         Submits a runners time to an async race
         :param runnertime: time of the runner, in the format H:M:S, e.g. 2:32:12
@@ -209,7 +209,7 @@ class AsyncRaces(commands.Cog):
             # if it is not an active race, try and submit it to the leaderboard
             await self.submit_leaderboard(ctx, runnertime)        
         else:
-            await race.submit(ctx.author, runnertime, vod, False, teammate)
+            await race.submit(ctx.author, runnertime, vod, False, teammate, teammate_vod)
             self._save_one(race)
 
         await ctx.message.delete()
