@@ -20,6 +20,7 @@ class StartAsyncFlags(commands.FlagConverter):
     race_role: Optional[str]
     start_timestamp: Optional[int]
     end_timestamp: Optional[int]
+    coop: Optional[bool] = False
 # 
 
 class AsyncRaces(commands.Cog):
@@ -91,6 +92,7 @@ class AsyncRaces(commands.Cog):
                 else None
             ),
             flags.race_role,
+            False if flags.coop is None else flags.coop,
         )
 
         await race.init_race()
@@ -193,7 +195,7 @@ class AsyncRaces(commands.Cog):
         await ctx.message.delete()
 
     @commands.command()
-    async def submit(self, ctx, runnertime: str = None, vod: str = None):
+    async def submit(self, ctx, runnertime: str | None = None, vod: str | None = None, teammate: discord.Member = None):
         """
         Submits a runners time to an async race
         :param runnertime: time of the runner, in the format H:M:S, e.g. 2:32:12
@@ -207,7 +209,7 @@ class AsyncRaces(commands.Cog):
             # if it is not an active race, try and submit it to the leaderboard
             await self.submit_leaderboard(ctx, runnertime)        
         else:
-            await race.submit(ctx.author, runnertime, vod, False)
+            await race.submit(ctx.author, runnertime, vod, False, teammate)
             self._save_one(race)
 
         await ctx.message.delete()
@@ -447,7 +449,7 @@ class AsyncRaces(commands.Cog):
         await ctx.message.delete()
 
 
-    async def forfeit(self, ctx):
+    async def forfeit(self, ctx, teammate: discord.Member = None):
         """
         Increments the number of forfeits and gives the appropriate
         role to the user
@@ -456,7 +458,8 @@ class AsyncRaces(commands.Cog):
         """
         race = self.get_race(ctx.channel.id)
         if (race is not None):
-            await race.submit(ctx.author, "00:00:00", "", True)
+            await race.submit(ctx.author, "00:00:00", "", True, teammate)
+            self._save_one(race)
             await ctx.message.delete()
             return
 
@@ -491,6 +494,7 @@ class AsyncRaces(commands.Cog):
         race = self.get_race(ctx.channel.id)
         if (race is not None):
             await race.spectate(ctx.author)
+            self._save_one(race)
             await ctx.message.delete()
             return 
         
@@ -637,8 +641,7 @@ class AsyncRaces(commands.Cog):
         or active races that have an end time set.
         """
         current_time = datetime.now()
-        logging.info("Heartbeat check")
-
+        
         # check for active races that should end
         # we have to take a copy because we will mutate active races
         # as a part of this loop

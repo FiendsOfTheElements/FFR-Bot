@@ -1,6 +1,8 @@
 import random
+from typing import Optional
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+import discord
 from discord.ext import commands
 
 from cogs.races.races import is_race_room
@@ -35,11 +37,11 @@ class RacesCommon(commands.Cog):
         await self.async_races.spectate(ctx)
 
     @commands.command(aliases=["ff", "dnf"])
-    async def forfeit(self, ctx):
+    async def forfeit(self, ctx, teammate: Optional[discord.Member] = None):
         if is_race_room(ctx):
             await self.races.forfeit(ctx)
             return
-        await self.async_races.forfeit(ctx)
+        await self.async_races.forfeit(ctx, teammate)
 
     @commands.command(
         aliases=["ff1url", "ff1roll", "ffrroll", "rollseedurl", "roll_ffr_url_seed"]
