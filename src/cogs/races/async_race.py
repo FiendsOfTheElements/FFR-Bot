@@ -390,13 +390,13 @@ class AsyncLeaderboardEntry:
         s = int((totsec % 3600) % 60)
         # convert the time back to hours minutes and seconds for the
         # leaderboard
-        if self.teammate_name is not None:
+        if getattr(self, 'teammate_name', None) is not None:
             entry_str = f"{self.runner_name} and {self.teammate_name} - {h}:{m:02d}:{s:02d}"
         else:
             entry_str = f"{self.runner_name} - {h}:{m:02d}:{s:02d}"
         if self.vod:
             entry_str = entry_str + f" - <{self.vod}>"
-        if self.teammate_vod:
+        if getattr(self, 'teammate_vod', None) is not None:
             entry_str = entry_str + f" - <{self.teammate_vod}>"
 
         return entry_str
