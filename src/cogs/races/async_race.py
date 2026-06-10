@@ -53,7 +53,7 @@ class AsyncRace:
         owner = await bot.fetch_user(data["owner_id"])
         race = cls(
             channel, data["name"], owner, data["flags"],
-            data["start_time"], data["end_time"], data["race_role"]
+            data["start_time"], data["end_time"], data["race_role"], data.get("is_coop", False)
         )
 
         # set the rest of the fields
@@ -69,7 +69,6 @@ class AsyncRace:
         if data.get("spoiler_leaderboard_message_id") is not None:
             race.spoiler_leaderboard_message = await race.spoiler_thread.fetch_message(data["spoiler_leaderboard_message_id"])
         race.leaderboard = data["leaderboard"]
-        race.is_coop = data.get("is_coop", False)
         return race
 
 
@@ -79,7 +78,7 @@ class AsyncRace:
             "race_id": self.race_id,
             "race_thread_id": self.race_thread.id,
             "spoiler_thread_id": self.spoiler_thread.id,
-            "name": self.race.name,
+            "name": self.name,
             "owner_id": self.owner.id,
             "flags": self.flags,
             "start_time": self.start_time,
@@ -93,7 +92,8 @@ class AsyncRace:
             "spoiler_leaderboard_message_id": self.spoiler_leaderboard_message.id if self.spoiler_leaderboard_message else None,
             "leaderboard": self.leaderboard,
             "is_coop": self.is_coop
-        }    
+        }            
+
 
     async def init_race(self):
         """
@@ -349,28 +349,6 @@ class AsyncRace:
                     leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"
 
         return leaderboard_str
-
-
-    def to_dict(self): 
-        return {
-            "race_channel_id": self.race_channel.id,
-            "race_id": self.race_id,
-            "race_thread_id": self.race_thread.id,
-            "spoiler_thread_id": self.spoiler_thread.id,
-            "name": self.name,
-            "owner_id": self.owner.id,
-            "flags": self.flags,
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "race_role": self.race_role,
-            "seed": self.seed,
-            "is_started": self.is_started,
-            "is_finished": self.is_finished,
-            "announcement_message_id": self.announcement_message.id,
-            "leaderboard_message_id": self.leaderboard_message.id if self.leaderboard_message else None,
-            "spoiler_leaderboard_message_id": self.spoiler_leaderboard_message.id if self.spoiler_leaderboard_message else None,
-            "leaderboard": self.leaderboard
-        }    
     
     def __eq__(self, other):
         if self.race_id is not None:
@@ -425,9 +403,10 @@ class AsyncLeaderboardEntry:
 
     def __eq__(self, other):
         if (isinstance(other, AsyncLeaderboardEntry)):
-            return self.runner_id == other.runner_id and self.teammate_id == other.teammate_id
+            return (self.runner_id == other.runner_id and getattr(self, 'teammate_id', None) == getattr(other, 'teammate_id', None)) \
+                or (self.runner_id == getattr(other, 'teammate_id', None) and getattr(self, 'teammate_id', None) == other.runner_id)
         elif (isinstance(other, int)):
-            return self.runner_id == other or self.teammate_id == other
+            return self.runner_id == other or (getattr(self, 'teammate_id', None) is not None and getattr(self, 'teammate_id', None) == other)
         return False
 
     def _get_time_delta(self, runner_time: str):
