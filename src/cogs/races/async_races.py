@@ -35,7 +35,7 @@ class AsyncRaces(commands.Cog):
             await self._load_data(bot)
         except Exception as e:
             message = "Error loading saved races"
-            message += traceback.TracebackException.from_exception(e).format().split[:1900]
+            message += "".join(traceback.TracebackException.from_exception(e).format())[:1900]
             await self._send_error(message)
             logging.error("Error loading saved races")
             logging.exception(e)
