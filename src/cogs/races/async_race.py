@@ -380,7 +380,7 @@ class AsyncLeaderboardEntry:
 
     def __str__(self):
         if self.is_forfeit:
-            if self.teammate_name is not None:
+            if getattr(self, 'teammate_name', None) is not None:
                 return f"{self.runner_name} and {self.teammate_name} - Forfeit"
             return f"{self.runner_name} - Forfeit"
 
