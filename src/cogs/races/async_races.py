@@ -8,7 +8,9 @@ from typing import List, Optional
 
 import discord
 from discord.ext import commands
+from discord import app_commands, ui
 from discord.utils import get
+import pytz
 
 import constants
 from cogs.races.async_race import AsyncRace
@@ -21,7 +23,160 @@ class StartAsyncFlags(commands.FlagConverter):
     start_timestamp: Optional[int]
     end_timestamp: Optional[int]
     coop: Optional[bool] = False
-# 
+
+
+class CreateAsyncModal(ui.Modal):
+    """Modal for creating a new async race with guided form inputs."""
+    
+    title = "Create Async Race"
+    
+    name_input = ui.TextInput(
+        label="Race Name",
+        placeholder="e.g., Tournament Race 1",
+        required=True
+    )
+    flags_input = ui.TextInput(
+        label="Race Flags",
+        placeholder="Flag URL",
+        required=True,
+        style=discord.TextStyle.long
+    )
+    race_role_input = ui.TextInput(
+        label="Role Name (optional)",
+        placeholder="Leave blank if not needed",
+        required=False
+    )
+    start_time_input = ui.TextInput(
+        label="Start Time (optional, ISO format, Eastern time)",
+        placeholder="e.g., 2026-07-15T10:30:00",
+        required=False
+    )
+    end_time_input = ui.TextInput(
+        label="End Time (optional, ISO format, Eastern time)",
+        placeholder="e.g., 2026-07-15T12:00:00",
+        required=False
+    )
+    coop_input = ui.TextInput(
+        label="Co-op Mode (optional)",
+        placeholder="true or false (default: false)",
+        required=False
+    )
+
+    def _iso_to_unix_timestamp(self, iso_string: str) -> Optional[int]:
+        """
+        Converts an ISO format datetime string (Eastern time) to Unix timestamp.
+        
+        Args:
+            iso_string: ISO format string, e.g., "2026-07-15T10:30:00"
+        
+        Returns:
+            Unix timestamp (int) if parsing succeeds, None otherwise
+        """
+        try:
+            # Parse ISO format
+            dt = datetime.fromisoformat(iso_string)
+            # Assume the input is in Eastern time
+            eastern = pytz.timezone('America/New_York')
+            dt_eastern = eastern.localize(dt)
+            # Convert to Unix timestamp
+            timestamp = int(dt_eastern.timestamp())
+            return timestamp
+        except (ValueError, pytz.exceptions.NonExistentTimeError, pytz.exceptions.AmbiguousTimeError):
+            return None
+        
+    async def on_submit(self, interaction: discord.Interaction):
+        """Process modal submission."""
+        # Check admin permission first
+        if not is_admin(interaction.user):
+            await interaction.response.defer()
+            await interaction.user.send("You do not have permission to create async races right now")
+            return
+
+        # Extract and parse inputs
+        name = self.name_input.value.strip() if self.name_input.value else None
+        flags = self.flags_input.value.strip() if self.flags_input.value else None
+        race_role = self.race_role_input.value.strip() if self.race_role_input.value else None
+        start_time_iso = self.start_time_input.value.strip() if self.start_time_input.value else None
+        end_time_iso = self.end_time_input.value.strip() if self.end_time_input.value else None
+        coop_str = self.coop_input.value.strip().lower() if self.coop_input.value else None
+
+        # Validate required fields
+        if not name:
+            await interaction.response.defer()
+            await interaction.user.send("You did not submit a name.")
+            return
+
+        if not flags:
+            await interaction.response.defer()
+            await interaction.user.send("You did not submit flags.")
+            return
+
+        # Parse coop boolean
+        coop = False
+        if coop_str:
+            if coop_str.lower() in ("true", "yes", "1"):
+                coop = True
+
+        # Parse timestamps
+        start_timestamp = None
+        end_timestamp = None
+
+        if start_time_iso:
+            start_timestamp = self._iso_to_unix_timestamp(start_time_iso)
+            if start_timestamp is None:
+                await interaction.response.defer()
+                await interaction.user.send("Invalid start time format. Use ISO format: 2026-07-15T10:30:00")
+                return
+
+        if end_time_iso:
+            end_timestamp = self._iso_to_unix_timestamp(end_time_iso)
+            if end_timestamp is None:
+                await interaction.response.defer()
+                await interaction.user.send("Invalid end time format. Use ISO format: 2026-07-15T10:30:00")
+                return
+
+        # Validate role if provided
+        if race_role:
+            role = discord.utils.get(interaction.guild.roles, name=race_role)
+            if role is None:
+                await interaction.response.defer()
+                await interaction.user.send(f"The role '{race_role}' does not exist.")
+                return
+
+        # Create the race
+        try:
+            race = AsyncRace(
+                interaction.channel,
+                name,
+                interaction.user,
+                flags,
+                (
+                    datetime.fromtimestamp(start_timestamp)
+                    if start_timestamp
+                    else None
+                ),
+                (
+                    datetime.fromtimestamp(end_timestamp)
+                    if end_timestamp
+                    else None
+                ),
+                race_role,
+                coop,
+            )
+
+            await race.init_race()
+            self.cog.active_races[race.race_id] = race
+            self.cog._save_one(race)
+
+            await interaction.response.defer()
+            await interaction.user.send(f"✅ Async race '{name}' created successfully!")
+        except Exception as e:
+            await interaction.response.defer()
+            error_msg = f"Error creating race: {str(e)}"
+            logging.error(error_msg)
+            logging.exception(e)
+            await interaction.user.send(error_msg)
+
 
 class AsyncRaces(commands.Cog):
 
@@ -51,54 +206,16 @@ class AsyncRaces(commands.Cog):
         self._delete_one(race.race_id)
 
 
-    @commands.command(aliases=["ca"])
-    async def createasync(self, ctx, *, flags: StartAsyncFlags):
+
+    @app_commands.command(name="createasync", description="Create a new async race using a guided form")
+    async def createasync(self, interaction: discord.Interaction):
         """
-        Creates a new async race
-        Race is created as a thread of the current channel
+        Creates a new async race via a modal form.
+        Shows a modal to guide the user through entering race details.
         """
-        owner = ctx.message.author
-
-        if not is_admin(owner):
-            await owner.send("You do not have permission to create async races right now")
-            await ctx.message.delete()
-            return
-        
-        if flags.name is None:
-            await owner.send("You did not submit a name.")
-            await ctx.message.delete()
-            return
-
-        if flags.race_role is not None:
-            role = get(ctx.channel.guild.roles, name=flags.race_role)
-            if role is None:
-                await owner.send(f"The role '{flags.race_role}' does not exist.")
-                await ctx.message.delete()
-                return
-            
-        race = AsyncRace(
-            ctx.channel,
-            flags.name,
-            owner,
-            flags.flags,
-            (
-                datetime.fromtimestamp(flags.start_timestamp)
-                if flags.start_timestamp
-                else None
-            ),
-            (
-                datetime.fromtimestamp(flags.end_timestamp)
-                if flags.end_timestamp
-                else None
-            ),
-            flags.race_role,
-            False if flags.coop is None else flags.coop,
-        )
-
-        await race.init_race()
-        self.active_races[race.race_id] = race
-        self._save_one(race)
-        await ctx.message.delete()
+        modal = CreateAsyncModal()
+        modal.cog = self
+        await interaction.response.show_modal(modal)
 
 
     @commands.command()
