@@ -65,17 +65,6 @@ async def on_ready():
     logging.info(bot.user.id)
     logging.info("------")
 
-@bot.command
-async def sync(ctx):
-    if (ctx.author.id != constants.poor_soul_id):
-        await ctx.author.send("You don't have permission to use this command.")
-        return
-    
-    await bot.tree.sync(ctx.guild)    
-    await ctx.author.send("Synced commands for this guild")
-    await bot.tree.sync()
-    await ctx.author.send("Synced commands globally")
-
 @bot.event
 async def on_command_error(ctx, error):
     poor_soul = bot.get_user(constants.poor_soul_id)

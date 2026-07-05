@@ -259,6 +259,9 @@ class Races(commands.Cog):
 
     @commands.check(is_call_for_races)
     async def spectate(self, ctx, id):
+        if ctx.interaction:
+            await ctx.interaction.response.defer(thinking=False)
+
         try:
             race = active_races[int(id)]
         except KeyError:
@@ -348,6 +351,9 @@ class Races(commands.Cog):
     @is_runner()
     @commands.check(is_race_room)
     async def forfeit(self, ctx):
+        if ctx.interaction:
+            await ctx.interaction.response.defer(thinking=False)
+
         try:
             race = active_races[ctx.channel.id]
             msg = race.forfeit(aliases[race.id][ctx.author.id])

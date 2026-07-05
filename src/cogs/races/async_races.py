@@ -16,6 +16,22 @@ import constants
 from cogs.races.async_race import AsyncRace
 from cogs.global_checks import is_admin
 
+async def coop_autocomplete(
+    interaction: discord.Interaction, 
+    current: str
+) -> list[app_commands.Choice[str]]:
+    # Create the text choices you want to provide
+    options = [
+        {"name": "Enabled (True)", "value": "true"},
+        {"name": "Disabled (False)", "value": "false"}
+    ]
+    
+    # Filter choices dynamically based on what the user types
+    return [
+        app_commands.Choice(name=opt["name"], value=opt["value"])
+        for opt in options if current.lower() in opt["name"].lower()
+    ]
+
 class StartAsyncFlags(commands.FlagConverter):
     name: str
     flags: str
@@ -24,43 +40,42 @@ class StartAsyncFlags(commands.FlagConverter):
     end_timestamp: Optional[int]
     coop: Optional[bool] = False
 
-
 class CreateAsyncModal(ui.Modal):
     """Modal for creating a new async race with guided form inputs."""
-    
-    title = "Create Async Race"
-    
-    name_input = ui.TextInput(
-        label="Race Name",
-        placeholder="e.g., Tournament Race 1",
-        required=True
-    )
-    flags_input = ui.TextInput(
-        label="Race Flags",
-        placeholder="Flag URL",
-        required=True,
-        style=discord.TextStyle.long
-    )
-    race_role_input = ui.TextInput(
-        label="Role Name (optional)",
-        placeholder="Leave blank if not needed",
-        required=False
-    )
-    start_time_input = ui.TextInput(
-        label="Start Time (optional, ISO format, Eastern time)",
-        placeholder="e.g., 2026-07-15T10:30:00",
-        required=False
-    )
-    end_time_input = ui.TextInput(
-        label="End Time (optional, ISO format, Eastern time)",
-        placeholder="e.g., 2026-07-15T12:00:00",
-        required=False
-    )
-    coop_input = ui.TextInput(
-        label="Co-op Mode (optional)",
-        placeholder="true or false (default: false)",
-        required=False
-    )
+    def __init__(self, cog, coop_mode: bool = False):    
+        super().__init__(title="Create Async Race")
+        self.coop_mode = coop_mode    
+        self.name_input = ui.TextInput(
+            label="Race Name",
+            placeholder="e.g., Tournament Race 1",
+            required=True
+        )
+        self.flags_input = ui.TextInput(
+            label="Race Flags",
+            placeholder="Flag URL",
+            required=True,
+            style=discord.TextStyle.long
+        )
+        self.race_role_input = ui.TextInput(
+            label="Role Name (optional)",
+            placeholder="Leave blank if not needed",
+            required=False
+        )
+        self.start_time_input = ui.TextInput(
+            label="Start Time (optional, ISO format, Eastern)",
+            placeholder="e.g., 2026-07-15T10:30:00",
+            required=False
+        )
+        self.end_time_input = ui.TextInput(
+            label="End Time (optional, ISO format, Eastern)",
+            placeholder="e.g., 2026-07-15T12:00:00",
+            required=False
+        )
+        self.add_item(self.name_input)
+        self.add_item(self.flags_input)
+        self.add_item(self.race_role_input)
+        self.add_item(self.start_time_input)
+        self.add_item(self.end_time_input)        
 
     def _iso_to_unix_timestamp(self, iso_string: str) -> Optional[int]:
         """
@@ -86,11 +101,6 @@ class CreateAsyncModal(ui.Modal):
         
     async def on_submit(self, interaction: discord.Interaction):
         """Process modal submission."""
-        # Check admin permission first
-        if not is_admin(interaction.user):
-            await interaction.response.defer()
-            await interaction.user.send("You do not have permission to create async races right now")
-            return
 
         # Extract and parse inputs
         name = self.name_input.value.strip() if self.name_input.value else None
@@ -98,7 +108,6 @@ class CreateAsyncModal(ui.Modal):
         race_role = self.race_role_input.value.strip() if self.race_role_input.value else None
         start_time_iso = self.start_time_input.value.strip() if self.start_time_input.value else None
         end_time_iso = self.end_time_input.value.strip() if self.end_time_input.value else None
-        coop_str = self.coop_input.value.strip().lower() if self.coop_input.value else None
 
         # Validate required fields
         if not name:
@@ -110,12 +119,6 @@ class CreateAsyncModal(ui.Modal):
             await interaction.response.defer()
             await interaction.user.send("You did not submit flags.")
             return
-
-        # Parse coop boolean
-        coop = False
-        if coop_str:
-            if coop_str.lower() in ("true", "yes", "1"):
-                coop = True
 
         # Parse timestamps
         start_timestamp = None
@@ -143,6 +146,9 @@ class CreateAsyncModal(ui.Modal):
                 await interaction.user.send(f"The role '{race_role}' does not exist.")
                 return
 
+        # defer now to be able to create in time.
+        await interaction.response.defer(ephemeral=True)
+
         # Create the race
         try:
             race = AsyncRace(
@@ -161,21 +167,19 @@ class CreateAsyncModal(ui.Modal):
                     else None
                 ),
                 race_role,
-                coop,
+                self.coop_mode,
             )
 
             await race.init_race()
             self.cog.active_races[race.race_id] = race
             self.cog._save_one(race)
 
-            await interaction.response.defer()
-            await interaction.user.send(f"✅ Async race '{name}' created successfully!")
+            await interaction.followup.send(f"✅ Async race '{name}' created successfully!", ephemeral=True)
         except Exception as e:
-            await interaction.response.defer()
             error_msg = f"Error creating race: {str(e)}"
             logging.error(error_msg)
             logging.exception(e)
-            await interaction.user.send(error_msg)
+            await interaction.followup.send(error_msg, ephemeral=True)
 
 
 class AsyncRaces(commands.Cog):
@@ -205,17 +209,28 @@ class AsyncRaces(commands.Cog):
         del self.active_races[race.race_id]
         self._delete_one(race.race_id)
 
-
-
     @app_commands.command(name="createasync", description="Create a new async race using a guided form")
-    async def createasync(self, interaction: discord.Interaction):
+    @app_commands.describe(coop="Is this a co-op race? (Default: false)")
+    @app_commands.autocomplete(coop=coop_autocomplete) 
+    async def createasync(self, interaction: discord.Interaction, coop: str = "false"):
         """
         Creates a new async race via a modal form.
         Shows a modal to guide the user through entering race details.
         """
-        modal = CreateAsyncModal()
+        # Check admin permission first
+        if not is_admin(interaction.user):
+            await interaction.response.defer()
+            await interaction.user.send("You do not have permission to create async races right now")
+            return
+        
+        if coop.lower() not in ["true", "false"]:
+            await interaction.response.defer()
+            await interaction.response.send_message("Invalid value for coop. Use 'true' or 'false'.", ephemeral=True)
+            return
+        
+        modal = CreateAsyncModal(self, coop_mode=coop.lower() == "true")
         modal.cog = self
-        await interaction.response.show_modal(modal)
+        await interaction.response.send_modal(modal)
 
 
     @commands.command()
@@ -316,7 +331,9 @@ class AsyncRaces(commands.Cog):
         """
         Submits a runners time to an async race
         :param runnertime: time of the runner, in the format H:M:S, e.g. 2:32:12
-        :param vod: link to the vod of the run, required for tournament asyncs
+        :param vod: optional link to the vod of the run, required for tournament asyncs
+        :param teammate: optional discord member for co-op asyncs
+        :param teammate_vod: optional link to the teammate's vod for co-op asyncs
         :param ctx: context of the command
         :return: None
         """
@@ -329,7 +346,10 @@ class AsyncRaces(commands.Cog):
             await race.submit(ctx.author, runnertime, vod, False, teammate, teammate_vod)
             self._save_one(race)
 
-        await ctx.message.delete()
+        if ctx.interaction:
+            await ctx.interaction.response.defer(thinking=False)
+        else:
+            await ctx.message.delete()
 
 
     async def submit_leaderboard(self, ctx, runnertime):
@@ -577,7 +597,10 @@ class AsyncRaces(commands.Cog):
         if (race is not None):
             await race.submit(ctx.author, "00:00:00", "", True, teammate)
             self._save_one(race)
-            await ctx.message.delete()
+            if ctx.interaction:
+                await ctx.interaction.response.defer(thinking=False)
+            else:                 
+                await ctx.message.delete()
             return
 
         user = ctx.message.author
@@ -599,7 +622,10 @@ class AsyncRaces(commands.Cog):
             await leaderboard.edit(content=new_leaderboard)
             await self.changeparticipants(ctx)
 
-        await ctx.message.delete()
+        if ctx.interaction:
+            await ctx.interaction.response.defer(thinking=False)
+        else:                 
+            await ctx.message.delete()
 
 
     async def spectate(self, ctx):
@@ -612,14 +638,20 @@ class AsyncRaces(commands.Cog):
         if (race is not None):
             await race.spectate(ctx.author)
             self._save_one(race)
-            await ctx.message.delete()
+            if ctx.interaction:
+                await ctx.interaction.response.defer(thinking=False)
+            else:                 
+                await ctx.message.delete()
             return 
         
         user = ctx.message.author
         role = await self.getrole(ctx)
         if role is not None and role.name in constants.nonadminroles:
             await user.add_roles(role)
-        await ctx.message.delete()
+        if ctx.interaction:
+            await ctx.interaction.response.defer(thinking=False)
+        else:                 
+            await ctx.message.delete()
 
 
     async def getrole(self, ctx):
