@@ -337,6 +337,9 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: None
         """
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+            
         # check to see if this was submitted to an active race
         race = self.get_race(ctx.channel.id)
         if race is None:
@@ -347,7 +350,7 @@ class AsyncRaces(commands.Cog):
             self._save_one(race)
 
         if ctx.interaction:
-            await ctx.interaction.response.defer(thinking=False)
+            await ctx.interaction.delete_original_response()
         else:
             await ctx.message.delete()
 
@@ -593,12 +596,15 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: None
         """
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+
         race = self.get_race(ctx.channel.id)
         if (race is not None):
             await race.submit(ctx.author, "00:00:00", "", True, teammate)
             self._save_one(race)
             if ctx.interaction:
-                await ctx.interaction.response.defer(thinking=False)
+                await ctx.interaction.delete_original_response()
             else:                 
                 await ctx.message.delete()
             return
@@ -623,7 +629,7 @@ class AsyncRaces(commands.Cog):
             await self.changeparticipants(ctx)
 
         if ctx.interaction:
-            await ctx.interaction.response.defer(thinking=False)
+            await ctx.interaction.delete_original_response()
         else:                 
             await ctx.message.delete()
 
@@ -634,12 +640,15 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: None
         """
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+
         race = self.get_race(ctx.channel.id)
         if (race is not None):
             await race.spectate(ctx.author)
             self._save_one(race)
             if ctx.interaction:
-                await ctx.interaction.response.defer(thinking=False)
+                await ctx.interaction.delete_original_response()
             else:                 
                 await ctx.message.delete()
             return 
@@ -649,7 +658,7 @@ class AsyncRaces(commands.Cog):
         if role is not None and role.name in constants.nonadminroles:
             await user.add_roles(role)
         if ctx.interaction:
-            await ctx.interaction.response.defer(thinking=False)
+            await ctx.interaction.delete_original_response()
         else:                 
             await ctx.message.delete()
 
