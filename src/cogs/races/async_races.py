@@ -111,13 +111,11 @@ class CreateAsyncModal(ui.Modal):
 
         # Validate required fields
         if not name:
-            await interaction.response.defer()
-            await interaction.user.send("You did not submit a name.")
+            await interaction.response.send_message("You did not submit a name.", ephemeral=True)
             return
 
         if not flags:
-            await interaction.response.defer()
-            await interaction.user.send("You did not submit flags.")
+            await interaction.response.send_message("You did not submit flags.", ephemeral=True)
             return
 
         # Parse timestamps
@@ -127,23 +125,20 @@ class CreateAsyncModal(ui.Modal):
         if start_time_iso:
             start_timestamp = self._iso_to_unix_timestamp(start_time_iso)
             if start_timestamp is None:
-                await interaction.response.defer()
-                await interaction.user.send("Invalid start time format. Use ISO format: 2026-07-15T10:30:00")
+                await interaction.response.send_message("Invalid start time format. Use ISO format: 2026-07-15T10:30:00", ephemeral=True)
                 return
 
         if end_time_iso:
             end_timestamp = self._iso_to_unix_timestamp(end_time_iso)
             if end_timestamp is None:
-                await interaction.response.defer()
-                await interaction.user.send("Invalid end time format. Use ISO format: 2026-07-15T10:30:00")
+                await interaction.response.send_message("Invalid end time format. Use ISO format: 2026-07-15T10:30:00", ephemeral=True)
                 return
 
         # Validate role if provided
         if race_role:
             role = discord.utils.get(interaction.guild.roles, name=race_role)
             if role is None:
-                await interaction.response.defer()
-                await interaction.user.send(f"The role '{race_role}' does not exist.")
+                await interaction.response.send_message(f"The role '{race_role}' does not exist.", ephemeral=True)
                 return
 
         # defer now to be able to create in time.
@@ -219,12 +214,10 @@ class AsyncRaces(commands.Cog):
         """
         # Check admin permission first
         if not is_admin(interaction.user):
-            await interaction.response.defer()
-            await interaction.user.send("You do not have permission to create async races right now")
+            await interaction.response.send_message("You do not have permission to create async races right now", ephemeral=True)
             return
         
         if coop.lower() not in ["true", "false"]:
-            await interaction.response.defer()
             await interaction.response.send_message("Invalid value for coop. Use 'true' or 'false'.", ephemeral=True)
             return
         
@@ -369,7 +362,8 @@ class AsyncRaces(commands.Cog):
         user = ctx.message.author
         role = await self.getrole(ctx)
         if (
-            role.name == constants.ducklingrole
+            role is not None 
+            and role.name == constants.ducklingrole
             and constants.rolerequiredduckling not in [role.name for role in user.roles]
         ):
             await user.send("You're not a duckling!")
@@ -609,7 +603,7 @@ class AsyncRaces(commands.Cog):
                 await ctx.message.delete()
             return
 
-        user = ctx.message.author
+        user = ctx.author
         role = await self.getrole(ctx)
 
         if (
@@ -653,7 +647,7 @@ class AsyncRaces(commands.Cog):
                 await ctx.message.delete()
             return 
         
-        user = ctx.message.author
+        user = ctx.interaction.user if ctx.interaction else ctx.message.author
         role = await self.getrole(ctx)
         if role is not None and role.name in constants.nonadminroles:
             await user.add_roles(role)
@@ -672,10 +666,10 @@ class AsyncRaces(commands.Cog):
         :return: Role or None
         """
 
-        user = ctx.message.author
-        roles = ctx.message.guild.roles
-        channel = ctx.message.channel
-        channels = ctx.message.guild.channels
+        user = ctx.author
+        roles = ctx.guild.roles
+        channel = ctx.channel
+        channels = ctx.guild.channels
         challengeseed = get(channels, name=constants.challengeseedchannel)
         asyncseed = get(channels, name=constants.asyncchannel)
         ducklingseed = get(channels, name=constants.ducklingchannel)
@@ -709,9 +703,9 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: Message or None
         """
-        user = ctx.message.author
-        channel = ctx.message.channel
-        channels = ctx.message.guild.channels
+        user = ctx.author
+        channel = ctx.channel
+        channels = ctx.guild.channels
         challengeseed = get(channels, name=constants.challengeseedchannel)
         asyncseed = get(channels, name=constants.asyncchannel)
         ducklingseed = get(channels, name=constants.ducklingchannel)
@@ -748,9 +742,9 @@ class AsyncRaces(commands.Cog):
         :return: Channel or None
         """
 
-        user = ctx.message.author
-        channel = ctx.message.channel
-        channels = ctx.message.guild.channels
+        user = ctx.author
+        channel = ctx.channel
+        channels = ctx.guild.channels
         challengeseed = get(channels, name=constants.challengeseedchannel)
         asyncseed = get(channels, name=constants.asyncchannel)
         ducklingseed = get(channels, name=constants.ducklingchannel)
@@ -777,7 +771,7 @@ class AsyncRaces(commands.Cog):
         """
 
         participants: List[Message] = (
-            ctx.message.channel if channel is None else channel
+            ctx.channel if channel is None else channel
         ).history(limit=100)
         async for x in participants:
             if x.author == self.bot.user:
