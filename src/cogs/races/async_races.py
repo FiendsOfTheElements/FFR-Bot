@@ -8,20 +8,167 @@ from typing import List, Optional
 
 import discord
 from discord.ext import commands
+from discord import app_commands, ui
 from discord.utils import get
+import pytz
 
 import constants
 from cogs.races.async_race import AsyncRace
 from cogs.global_checks import is_admin
 
-class StartAsyncFlags(commands.FlagConverter):
-    name: str
-    flags: str
-    race_role: Optional[str]
-    start_timestamp: Optional[int]
-    end_timestamp: Optional[int]
-    coop: Optional[bool] = False
-# 
+async def coop_autocomplete(
+    interaction: discord.Interaction, 
+    current: str
+) -> list[app_commands.Choice[str]]:
+    # Create the text choices you want to provide
+    options = [
+        {"name": "Enabled (True)", "value": "true"},
+        {"name": "Disabled (False)", "value": "false"}
+    ]
+    
+    # Filter choices dynamically based on what the user types
+    return [
+        app_commands.Choice(name=opt["name"], value=opt["value"])
+        for opt in options if current.lower() in opt["name"].lower()
+    ]
+
+class CreateAsyncModal(ui.Modal):
+    """Modal for creating a new async race with guided form inputs."""
+    def __init__(self, cog, coop_mode: bool = False):    
+        super().__init__(title="Create Async Race")
+        self.cog = cog
+        self.coop_mode = coop_mode    
+        self.name_input = ui.TextInput(
+            label="Race Name",
+            placeholder="e.g., Tournament Race 1",
+            required=True
+        )
+        self.flags_input = ui.TextInput(
+            label="Race Flags",
+            placeholder="Flag URL",
+            required=True,
+            style=discord.TextStyle.long
+        )
+        self.race_role_input = ui.TextInput(
+            label="Role Name (optional)",
+            placeholder="Leave blank if not needed",
+            required=False
+        )
+        self.start_time_input = ui.TextInput(
+            label="Start Time (optional, ISO format, Eastern)",
+            placeholder="e.g., 2026-07-15T10:30:00",
+            required=False
+        )
+        self.end_time_input = ui.TextInput(
+            label="End Time (optional, ISO format, Eastern)",
+            placeholder="e.g., 2026-07-15T12:00:00",
+            required=False
+        )
+        self.add_item(self.name_input)
+        self.add_item(self.flags_input)
+        self.add_item(self.race_role_input)
+        self.add_item(self.start_time_input)
+        self.add_item(self.end_time_input)        
+
+    def _iso_to_unix_timestamp(self, iso_string: str) -> Optional[int]:
+        """
+        Converts an ISO format datetime string (Eastern time) to Unix timestamp.
+        
+        Args:
+            iso_string: ISO format string, e.g., "2026-07-15T10:30:00"
+        
+        Returns:
+            Unix timestamp (int) if parsing succeeds, None otherwise
+        """
+        try:
+            # Parse ISO format
+            dt = datetime.fromisoformat(iso_string)
+            # Assume the input is in Eastern time
+            eastern = pytz.timezone('America/New_York')
+            dt_eastern = eastern.localize(dt)
+            # Convert to Unix timestamp
+            timestamp = int(dt_eastern.timestamp())
+            return timestamp
+        except (ValueError, pytz.exceptions.NonExistentTimeError, pytz.exceptions.AmbiguousTimeError):
+            return None
+        
+    async def on_submit(self, interaction: discord.Interaction):
+        """Process modal submission."""
+
+        # Extract and parse inputs
+        name = self.name_input.value.strip() if self.name_input.value else None
+        flags = self.flags_input.value.strip() if self.flags_input.value else None
+        race_role = self.race_role_input.value.strip() if self.race_role_input.value else None
+        start_time_iso = self.start_time_input.value.strip() if self.start_time_input.value else None
+        end_time_iso = self.end_time_input.value.strip() if self.end_time_input.value else None
+
+        # Validate required fields
+        if not name:
+            await interaction.response.send_message("You did not submit a name.", ephemeral=True)
+            return
+
+        if not flags:
+            await interaction.response.send_message("You did not submit flags.", ephemeral=True)
+            return
+
+        # Parse timestamps
+        start_timestamp = None
+        end_timestamp = None
+
+        if start_time_iso:
+            start_timestamp = self._iso_to_unix_timestamp(start_time_iso)
+            if start_timestamp is None:
+                await interaction.response.send_message("Invalid start time format. Use ISO format: 2026-07-15T10:30:00", ephemeral=True)
+                return
+
+        if end_time_iso:
+            end_timestamp = self._iso_to_unix_timestamp(end_time_iso)
+            if end_timestamp is None:
+                await interaction.response.send_message("Invalid end time format. Use ISO format: 2026-07-15T10:30:00", ephemeral=True)
+                return
+
+        # Validate role if provided
+        if race_role:
+            role = discord.utils.get(interaction.guild.roles, name=race_role)
+            if role is None:
+                await interaction.response.send_message(f"The role '{race_role}' does not exist.", ephemeral=True)
+                return
+
+        # defer now to be able to create in time.
+        await interaction.response.defer(ephemeral=True)
+
+        # Create the race
+        try:
+            race = AsyncRace(
+                interaction.channel,
+                name,
+                interaction.user,
+                flags,
+                (
+                    datetime.fromtimestamp(start_timestamp)
+                    if start_timestamp
+                    else None
+                ),
+                (
+                    datetime.fromtimestamp(end_timestamp)
+                    if end_timestamp
+                    else None
+                ),
+                race_role,
+                self.coop_mode,
+            )
+
+            await race.init_race()
+            self.cog.active_races[race.race_id] = race
+            self.cog._save_one(race)
+
+            await interaction.followup.send(f"✅ Async race '{name}' created successfully!", ephemeral=True)
+        except Exception as e:
+            error_msg = f"Error creating race: {str(e)}"
+            logging.error(error_msg)
+            logging.exception(e)
+            await interaction.followup.send(error_msg, ephemeral=True)
+
 
 class AsyncRaces(commands.Cog):
 
@@ -50,55 +197,29 @@ class AsyncRaces(commands.Cog):
         del self.active_races[race.race_id]
         self._delete_one(race.race_id)
 
+    def is_async_race_crew_member(self, user):
+        return is_admin(user) or any(role.name in constants.adminroles + ["Race Crew Lead"] for role in user.roles)
 
-    @commands.command(aliases=["ca"])
-    async def createasync(self, ctx, *, flags: StartAsyncFlags):
+    @app_commands.command(name="createasync", description="Create a new async race using a guided form")
+    @app_commands.guild_only()
+    @app_commands.describe(coop="Is this a co-op race? (Default: false)")
+    @app_commands.autocomplete(coop=coop_autocomplete) 
+    async def createasync(self, interaction: discord.Interaction, coop: str = "false"):
         """
-        Creates a new async race
-        Race is created as a thread of the current channel
+        Creates a new async race via a modal form.
+        Shows a modal to guide the user through entering race details.
         """
-        owner = ctx.message.author
-
-        if not is_admin(owner):
-            await owner.send("You do not have permission to create async races right now")
-            await ctx.message.delete()
+        # Check admin permission first
+        if not self.is_async_race_crew_member(interaction.user):
+            await interaction.response.send_message("You do not have permission to create async races right now", ephemeral=True)
             return
         
-        if flags.name is None:
-            await owner.send("You did not submit a name.")
-            await ctx.message.delete()
+        if coop.lower() not in ["true", "false"]:
+            await interaction.response.send_message("Invalid value for coop. Use 'true' or 'false'.", ephemeral=True)
             return
-
-        if flags.race_role is not None:
-            role = get(ctx.channel.guild.roles, name=flags.race_role)
-            if role is None:
-                await owner.send(f"The role '{flags.race_role}' does not exist.")
-                await ctx.message.delete()
-                return
-            
-        race = AsyncRace(
-            ctx.channel,
-            flags.name,
-            owner,
-            flags.flags,
-            (
-                datetime.fromtimestamp(flags.start_timestamp)
-                if flags.start_timestamp
-                else None
-            ),
-            (
-                datetime.fromtimestamp(flags.end_timestamp)
-                if flags.end_timestamp
-                else None
-            ),
-            flags.race_role,
-            False if flags.coop is None else flags.coop,
-        )
-
-        await race.init_race()
-        self.active_races[race.race_id] = race
-        self._save_one(race)
-        await ctx.message.delete()
+        
+        modal = CreateAsyncModal(self, coop_mode=coop.lower() == "true")
+        await interaction.response.send_modal(modal)
 
 
     @commands.command()
@@ -135,6 +256,7 @@ class AsyncRaces(commands.Cog):
 
         await race.end_race()
         self.remove_race(race)
+        await ctx.message.delete()
     
     @commands.command(aliases=["cancel"])
     async def cancelasync(self, ctx):
@@ -194,15 +316,20 @@ class AsyncRaces(commands.Cog):
 
         await ctx.message.delete()
 
-    @commands.command()
+    @commands.hybrid_command(description="Submit your time alongside a VOD for the async race.")
     async def submit(self, ctx, runnertime: str | None = None, vod: str | None = None, teammate: discord.Member = None, teammate_vod: str | None = None):
         """
         Submits a runners time to an async race
         :param runnertime: time of the runner, in the format H:M:S, e.g. 2:32:12
-        :param vod: link to the vod of the run, required for tournament asyncs
+        :param vod: optional link to the vod of the run, required for tournament asyncs
+        :param teammate: optional discord member for co-op asyncs
+        :param teammate_vod: optional link to the teammate's vod for co-op asyncs
         :param ctx: context of the command
         :return: None
         """
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+            
         # check to see if this was submitted to an active race
         race = self.get_race(ctx.channel.id)
         if race is None:
@@ -212,7 +339,10 @@ class AsyncRaces(commands.Cog):
             await race.submit(ctx.author, runnertime, vod, False, teammate, teammate_vod)
             self._save_one(race)
 
-        await ctx.message.delete()
+        if ctx.interaction:
+            await ctx.interaction.delete_original_response()
+        else:
+            await ctx.message.delete()
 
 
     async def submit_leaderboard(self, ctx, runnertime):
@@ -226,10 +356,11 @@ class AsyncRaces(commands.Cog):
             # submit only on leaderboard
             return
         
-        user = ctx.message.author
+        user = ctx.author
         role = await self.getrole(ctx)
         if (
-            role.name == constants.ducklingrole
+            role is not None 
+            and role.name == constants.ducklingrole
             and constants.rolerequiredduckling not in [role.name for role in user.roles]
         ):
             await user.send("You're not a duckling!")
@@ -456,14 +587,20 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: None
         """
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+
         race = self.get_race(ctx.channel.id)
         if (race is not None):
             await race.submit(ctx.author, "00:00:00", "", True, teammate)
             self._save_one(race)
-            await ctx.message.delete()
+            if ctx.interaction:
+                await ctx.interaction.delete_original_response()
+            else:                 
+                await ctx.message.delete()
             return
 
-        user = ctx.message.author
+        user = ctx.author
         role = await self.getrole(ctx)
 
         if (
@@ -482,7 +619,10 @@ class AsyncRaces(commands.Cog):
             await leaderboard.edit(content=new_leaderboard)
             await self.changeparticipants(ctx)
 
-        await ctx.message.delete()
+        if ctx.interaction:
+            await ctx.interaction.delete_original_response()
+        else:                 
+            await ctx.message.delete()
 
 
     async def spectate(self, ctx):
@@ -491,18 +631,27 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: None
         """
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+
         race = self.get_race(ctx.channel.id)
         if (race is not None):
             await race.spectate(ctx.author)
             self._save_one(race)
-            await ctx.message.delete()
+            if ctx.interaction:
+                await ctx.interaction.delete_original_response()
+            else:                 
+                await ctx.message.delete()
             return 
         
-        user = ctx.message.author
+        user = ctx.interaction.user if ctx.interaction else ctx.message.author
         role = await self.getrole(ctx)
         if role is not None and role.name in constants.nonadminroles:
             await user.add_roles(role)
-        await ctx.message.delete()
+        if ctx.interaction:
+            await ctx.interaction.delete_original_response()
+        else:                 
+            await ctx.message.delete()
 
 
     async def getrole(self, ctx):
@@ -514,10 +663,10 @@ class AsyncRaces(commands.Cog):
         :return: Role or None
         """
 
-        user = ctx.message.author
-        roles = ctx.message.guild.roles
-        channel = ctx.message.channel
-        channels = ctx.message.guild.channels
+        user = ctx.author
+        roles = ctx.guild.roles
+        channel = ctx.channel
+        channels = ctx.guild.channels
         challengeseed = get(channels, name=constants.challengeseedchannel)
         asyncseed = get(channels, name=constants.asyncchannel)
         ducklingseed = get(channels, name=constants.ducklingchannel)
@@ -551,9 +700,9 @@ class AsyncRaces(commands.Cog):
         :param ctx: context of the command
         :return: Message or None
         """
-        user = ctx.message.author
-        channel = ctx.message.channel
-        channels = ctx.message.guild.channels
+        user = ctx.author
+        channel = ctx.channel
+        channels = ctx.guild.channels
         challengeseed = get(channels, name=constants.challengeseedchannel)
         asyncseed = get(channels, name=constants.asyncchannel)
         ducklingseed = get(channels, name=constants.ducklingchannel)
@@ -590,9 +739,9 @@ class AsyncRaces(commands.Cog):
         :return: Channel or None
         """
 
-        user = ctx.message.author
-        channel = ctx.message.channel
-        channels = ctx.message.guild.channels
+        user = ctx.author
+        channel = ctx.channel
+        channels = ctx.guild.channels
         challengeseed = get(channels, name=constants.challengeseedchannel)
         asyncseed = get(channels, name=constants.asyncchannel)
         ducklingseed = get(channels, name=constants.ducklingchannel)
@@ -619,7 +768,7 @@ class AsyncRaces(commands.Cog):
         """
 
         participants: List[Message] = (
-            ctx.message.channel if channel is None else channel
+            ctx.channel if channel is None else channel
         ).history(limit=100)
         async for x in participants:
             if x.author == self.bot.user:

@@ -258,16 +258,22 @@ class Races(commands.Cog):
         await self.startcountdown(ctx)
 
     @commands.check(is_call_for_races)
-    async def spectate(self, ctx, id):
+    async def spectate(self, ctx):
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+
         try:
-            race = active_races[int(id)]
-        except KeyError:
-            return
-        await ctx.message.delete()
-        if id:
+            race = active_races[ctx.channel.id]
             await race.channel.send(
                 f"{ctx.author.mention} is now cheering you on from the sidelines"
             )
+        except KeyError:
+            return
+        finally:
+            if ctx.interaction:
+                await ctx.interaction.delete_original_response()
+            else:
+                await ctx.message.delete()
 
     @commands.command(aliases=["r"])
     @is_race_started(toggle=False)
@@ -348,6 +354,9 @@ class Races(commands.Cog):
     @is_runner()
     @commands.check(is_race_room)
     async def forfeit(self, ctx):
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+
         try:
             race = active_races[ctx.channel.id]
             msg = race.forfeit(aliases[race.id][ctx.author.id])
@@ -358,6 +367,10 @@ class Races(commands.Cog):
         except KeyError:
             await ctx.channel.send("Key Error in the 'forfeit' command")
 
+        if ctx.interaction:
+            await ctx.interaction.delete_original_response()
+
+            
     @commands.command(aliases=["t"])
     @commands.check(is_race_room)
     @is_race_started(toggle=True)

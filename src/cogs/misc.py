@@ -2,6 +2,7 @@ import re
 from math import ceil
 from random import random
 from discord.ext import commands
+import constants
 
 class MiscCommandCog(commands.Cog):
     def __init__(self, bot):
@@ -13,6 +14,17 @@ class MiscCommandCog(commands.Cog):
         await ctx.author.send(ctx.author.id)
         await ctx.message.delete()
 
+    @commands.command()
+    async def sync(self, ctx, context=None):
+        if (ctx.author.id != constants.poor_soul_id):
+            await ctx.author.send("You don't have permission to use this command.")
+            return
+        
+        await self.bot.tree.sync(guild=ctx.guild)    
+        await ctx.author.send("Synced commands for this guild")
+        if context == "*":
+            await self.bot.tree.sync()
+            await ctx.author.send("Synced commands globally")
 
     @commands.command()
     async def roll(self, ctx, dice):

@@ -29,15 +29,18 @@ class RacesCommon(commands.Cog):
         self.async_races = async_races
 
 
-    @commands.command(aliases=["s", "spec"])
+    @commands.hybrid_command(aliases=["s", "spec"], description="Spectate the current race and get added to the race / spoiler channels")
     async def spectate(self, ctx):
         if is_race_room(ctx):
-            await self.races.spectate(ctx, -1)
+            await self.races.spectate(ctx)
             return
         await self.async_races.spectate(ctx)
 
-    @commands.command(aliases=["ff", "dnf"])
+    @commands.hybrid_command(aliases=["ff", "dnf"], description="Forfeit the race. For asyncs no VOD is required")
     async def forfeit(self, ctx, teammate: Optional[discord.Member] = None):
+        """
+        :param teammate: optional (async only) teammate to forfeit for, if any
+        """
         if is_race_room(ctx):
             await self.races.forfeit(ctx)
             return

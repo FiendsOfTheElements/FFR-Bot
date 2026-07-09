@@ -50,11 +50,6 @@ redis_polls = redis.StrictRedis(connection_pool=redis_pool)
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
-    for guild in bot.guilds:
-        cmds = bot.tree.get_commands(guild=guild)
-        if cmds:
-            await bot.tree.sync(guild=guild)
     async_races = bot.get_cog("AsyncRaces")
     if (async_races is not None):
         await async_races.load_data(bot)
@@ -69,7 +64,6 @@ async def on_ready():
     logging.info(bot.user.name)
     logging.info(bot.user.id)
     logging.info("------")
-
 
 @bot.event
 async def on_command_error(ctx, error):
