@@ -32,18 +32,11 @@ async def coop_autocomplete(
         for opt in options if current.lower() in opt["name"].lower()
     ]
 
-class StartAsyncFlags(commands.FlagConverter):
-    name: str
-    flags: str
-    race_role: Optional[str]
-    start_timestamp: Optional[int]
-    end_timestamp: Optional[int]
-    coop: Optional[bool] = False
-
 class CreateAsyncModal(ui.Modal):
     """Modal for creating a new async race with guided form inputs."""
     def __init__(self, cog, coop_mode: bool = False):    
         super().__init__(title="Create Async Race")
+        self.cog = cog
         self.coop_mode = coop_mode    
         self.name_input = ui.TextInput(
             label="Race Name",
@@ -208,6 +201,7 @@ class AsyncRaces(commands.Cog):
         return is_admin(user) or any(role.name in constants.adminroles + ["Race Crew Lead"] for role in user.roles)
 
     @app_commands.command(name="createasync", description="Create a new async race using a guided form")
+    @app_commands.guild_only()
     @app_commands.describe(coop="Is this a co-op race? (Default: false)")
     @app_commands.autocomplete(coop=coop_autocomplete) 
     async def createasync(self, interaction: discord.Interaction, coop: str = "false"):
@@ -225,7 +219,6 @@ class AsyncRaces(commands.Cog):
             return
         
         modal = CreateAsyncModal(self, coop_mode=coop.lower() == "true")
-        modal.cog = self
         await interaction.response.send_modal(modal)
 
 
@@ -363,7 +356,7 @@ class AsyncRaces(commands.Cog):
             # submit only on leaderboard
             return
         
-        user = ctx.message.author
+        user = ctx.author
         role = await self.getrole(ctx)
         if (
             role is not None 
