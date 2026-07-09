@@ -204,6 +204,9 @@ class AsyncRaces(commands.Cog):
         del self.active_races[race.race_id]
         self._delete_one(race.race_id)
 
+    def is_async_race_crew_member(self, user):
+        return is_admin(user) or any(role.name in constants.adminroles + ["Race Crew Lead"] for role in user.roles)
+
     @app_commands.command(name="createasync", description="Create a new async race using a guided form")
     @app_commands.describe(coop="Is this a co-op race? (Default: false)")
     @app_commands.autocomplete(coop=coop_autocomplete) 
@@ -213,7 +216,7 @@ class AsyncRaces(commands.Cog):
         Shows a modal to guide the user through entering race details.
         """
         # Check admin permission first
-        if not is_admin(interaction.user):
+        if not self.is_async_race_crew_member(interaction.user):
             await interaction.response.send_message("You do not have permission to create async races right now", ephemeral=True)
             return
         
@@ -260,6 +263,7 @@ class AsyncRaces(commands.Cog):
 
         await race.end_race()
         self.remove_race(race)
+        await ctx.message.delete()
     
     @commands.command(aliases=["cancel"])
     async def cancelasync(self, ctx):
