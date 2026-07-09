@@ -1,8 +1,8 @@
 FROM gorialis/discord.py:3.12.2-alpine-pypi-minimal
-RUN python -m pip install redis
-RUN python -m pip install -U discord.py
 
+COPY requirements.txt /usr/src/app/requirements.txt
 WORKDIR /usr/src/app
+RUN pip install -r requirements.txt
 COPY src/ ./
 COPY token.txt .
 
