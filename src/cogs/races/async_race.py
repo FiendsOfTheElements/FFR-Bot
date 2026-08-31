@@ -197,11 +197,12 @@ class AsyncRace:
 
         finished_racers = [entry for entry in self.leaderboard if not entry.is_forfeit and not entry.is_spectator]
         finished_racers.sort(key=lambda x: x.time_delta)
-        leaderboard_str = "Final Leaderboard:\n"
-        leaderboard_str = leaderboard_str + self._build_leaderboard_string()
+        leaderboard_header = "Final leaderboard:\n"
 
         # post the final leaderboard
-        await self.race_thread.send(leaderboard_str)
+        for chunk in self._build_leaderboard_string_chunks():
+            await self.race_thread.send(leaderboard_header + chunk)
+            leaderboard_header = ""
 
         # send the CSV export to the owner
         leaderboard_csv = self.export_leaderboard()
@@ -272,11 +273,11 @@ class AsyncRace:
 
         if self.spoiler_leaderboard_message is not None:
             await self.spoiler_leaderboard_message.edit(
-                content="Current Leaderboard:\n" + self._build_leaderboard_string(show_bins=False)
+                content="Current Leaderboard:\n" + self._build_leaderboard_string_chunks(show_bins=False)[0]
             )
         else:
             self.spoiler_leaderboard_message = await self.spoiler_thread.send(
-                "Current Leaderboard:\n" + self._build_leaderboard_string(show_bins=False)
+                "Current Leaderboard:\n" + self._build_leaderboard_string_chunks(show_bins=False)[0]
             )
             await self.spoiler_leaderboard_message.pin()
 
@@ -305,15 +306,19 @@ class AsyncRace:
         Returns the leaderboard as a comma separated string
         """
         leaderboard_str = "Runner,Time,VOD,Bin\n"
-        leaderboard_str = leaderboard_str + self._build_leaderboard_string(comma_separated=True)
+        chunks = self._build_leaderboard_string_chunks(comma_separated=True)
+        for link in chunks:
+            leaderboard_str = leaderboard_str + link
         return leaderboard_str
 
-    def _build_leaderboard_string(self, comma_separated=False, show_bins=True):
+    def _build_leaderboard_string_chunks(self, comma_separated=False, show_bins=True):
         finished_racers = [entry for entry in self.leaderboard if not entry.is_forfeit and not entry.is_spectator]
         finished_racers.sort(key=lambda x: x.time_delta)
         leaderboard_str = ""
+        leaderboard_chunks = []
+        current_chunk = ""
         if len(finished_racers) == 0 and not comma_separated:
-            leaderboard_str = leaderboard_str + "No finishers!\n"
+            current_chunk = "No finishers!\n"
         else:            
             bin_end_time = -1
             bin_number = 1
@@ -329,26 +334,39 @@ class AsyncRace:
 
                 if comma_separated:
                     if self.is_coop and entry.teammate_name is not None:
-                        leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.teammate_name},{entry.runner_time},{entry.vod if entry.vod else ''},{entry.teammate_vod if entry.teammate_vod else ''},{bin_number}\n"
+                        leaderboard_str = f"{entry.runner_name},{entry.teammate_name},{entry.runner_time},{entry.vod if entry.vod else ''},{entry.teammate_vod if entry.teammate_vod else ''},{bin_number}\n"
                     else:
-                        leaderboard_str = leaderboard_str + f"{entry.runner_name},{entry.runner_time},{entry.vod if entry.vod else ''},{bin_number}\n"
+                        leaderboard_str = f"{entry.runner_name},{entry.runner_time},{entry.vod if entry.vod else ''},{bin_number}\n"
                 else:
                     if show_bins:
-                        leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)} (Bin {bin_number})\n"
+                        leaderboard_str = f"{i+1}. {str(entry)} (Bin {bin_number})\n"
                     else:
-                        leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"                            
+                        leaderboard_str = f"{i+1}. {str(entry)}\n"                            
 
+                if (len(leaderboard_str) + len(current_chunk)) > 1900:
+                    leaderboard_chunks.append(current_chunk)
+                    current_chunk = leaderboard_str
+                else:
+                    current_chunk = current_chunk + leaderboard_str
+        
         forfeits = [entry for entry in self.leaderboard if entry.is_forfeit and not entry.is_spectator]
         if len(forfeits) > 0:
             if not comma_separated:
-                leaderboard_str = leaderboard_str + "\nForfeits:\n"
+                current_chunk = current_chunk + "\nForfeits:\n"
             for i, entry in enumerate(forfeits):
                 if comma_separated:
-                    leaderboard_str = leaderboard_str + f"{entry.runner_name},DNF,,\n"
+                    leaderboard_str = f"{entry.runner_name},DNF,,\n"
                 else:
-                    leaderboard_str = leaderboard_str + f"{i+1}. {str(entry)}\n"
+                    leaderboard_str = f"{i+1}. {str(entry)}\n"
+                if (len(leaderboard_str) + len(current_chunk)) > 1900:
+                    leaderboard_chunks.append(current_chunk)
+                    current_chunk = leaderboard_str
+                else:
+                    current_chunk = current_chunk + leaderboard_str
 
-        return leaderboard_str
+        if current_chunk:
+            leaderboard_chunks.append(current_chunk)
+        return leaderboard_chunks
     
     def __eq__(self, other):
         if self.race_id is not None:
