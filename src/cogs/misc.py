@@ -60,7 +60,7 @@ class MiscCommandCog(commands.Cog):
     @commands.command(aliases=["8ball"])
     async def eightball(self, ctx, *, question=None):
         if not question or not question.endswith("?"):
-            await ctx.message.channel.send("Magic 8-ball says: **Please ask a yes/no question ending with a '?'**")
+            await ctx.message.channel.send("The black orb says: **Please ask a yes/no question ending with a '?'**")
             return
         
         eightball_responses = [
@@ -96,5 +96,5 @@ class MiscCommandCog(commands.Cog):
             "Lu... pa... ?",
         ]
         await ctx.message.channel.send(
-            f"Magic 8-ball says: **{choice(eightball_responses)}**"
+            f"The black orb says: **{choice(eightball_responses)}**"
         )
