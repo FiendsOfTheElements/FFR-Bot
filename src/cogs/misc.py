@@ -1,6 +1,6 @@
 import re
-from math import ceil, floor
-from random import random
+from math import ceil
+from random import random, choice
 from discord.ext import commands
 import constants
 
@@ -96,5 +96,5 @@ class MiscCommandCog(commands.Cog):
             "Lu... pa... ?",
         ]
         await ctx.message.channel.send(
-            f"Magic 8-ball says: **{eightball_responses[floor(random() * len(eightball_responses))]}**"
+            f"Magic 8-ball says: **{choice(eightball_responses)}**"
         )
