@@ -57,8 +57,12 @@ class MiscCommandCog(commands.Cog):
             coinres = "Tails"
         await ctx.message.channel.send(f"Coin landed on: **{format(coinres)}**")
 
-    @commands.command()
-    async def eightball(self, ctx, *, question):
+    @commands.command(aliases=["8ball"])
+    async def eightball(self, ctx, *, question=None):
+        if not question or not question.endswith("?"):
+            await ctx.message.channel.send("Magic 8-ball says: **Please ask a yes/no question ending with a '?'**")
+            return
+        
         eightball_responses = [
             "It is certain.",
             "It is decidedly so.",
