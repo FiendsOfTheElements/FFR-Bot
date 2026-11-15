@@ -1,10 +1,11 @@
 import asyncio
 import logging
-
+from typing import Optional
 import urllib.request
 import json
 from io import StringIO
 
+import discord
 from discord import DiscordException
 from discord.ext import commands
 from discord.utils import get
@@ -171,8 +172,20 @@ class Races(commands.Cog):
         else:
             await ctx.channel.send("Race is already unlocked.")
 
-    @commands.command(aliases=["enter", "j"])
-    async def join(self, ctx, name=None):
+    @commands.hybrid_command(aliases=["enter", "j"], description="Join the current race. For coop put your team name in quotes and then @ your teammates")
+    async def join(
+        self, 
+        ctx, 
+        name: Optional[str]=None, 
+        teammate1: Optional[discord.Member]=None, 
+        teammate2: Optional[discord.Member]=None,
+        teammate3: Optional[discord.Member]=None,
+        teammate4: Optional[discord.Member]=None,
+    ):
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+
+        teammates = [t for t in [teammate1, teammate2, teammate3, teammate4] if t is not None]
         try:
             await ctx.message.delete()
         except DiscordException:
@@ -206,12 +219,18 @@ class Races(commands.Cog):
         teamslist[id][ctx.author.id] = dict(
             [("name", name), ("members", [[ctx.author.display_name, ctx.author.id]])]
         )
-        tagpeople = "Welcome! " + ctx.author.mention
-        for r in ctx.message.mentions:
+        tagpeople = "Welcome "
+        if name is not None:
+            tagpeople += name
+        tagpeople += "! " + ctx.author.mention + " "
+
+        for r in teammates:
             aliases[id][r.id] = ctx.author.id
             teamslist[id][ctx.author.id]["members"].append([r.display_name, r.id])
             tagpeople += r.mention + " "
         await race.channel.send(tagpeople)
+        if ctx.interaction:
+            await ctx.interaction.delete_original_response()
 
     @commands.command(aliases=["quit"])
     @is_runner()
